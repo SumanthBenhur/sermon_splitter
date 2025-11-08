@@ -13,7 +13,6 @@ import numpy as np
 import mediapipe as mp
 from yt_dlp import YoutubeDL
 
-# from vosk import Model, KaldiRecognizer
 import srt as srtlib
 from datetime import timedelta
 from transformers import pipeline
@@ -33,7 +32,7 @@ SUB_FONTSIZE = 42
 FORCE_STYLE = (
     f"FontName={SUB_FONT},"
     f"FontSize={SUB_FONTSIZE},"
-    f"PrimaryColour=&H00FFFFFF&,"     # opaque white
+    f"PrimaryColour=&H00FFFFFF&, "     # opaque white
     f"BackColour=&H7F000000&,"        # ~50% black box
     f"BorderStyle=3,"                 # boxed background (tight to glyphs)
     f"Outline=0,Shadow=0,"            # no outline/shadow (box handles contrast)
@@ -43,32 +42,26 @@ FORCE_STYLE = (
     f"ScaleX=100,ScaleY=100"
 )
 
-VOSK_LANG = "en"  # English only
-VOSK_MODEL_DIR = Path("models") / "vosk-en"
 
 # ---------- Utils ----------
-def ensure_mp4_name(name: str, default: str = "clip.mp4") -> str:
+def sanitize_mp4_filename(name: str, default: str = "clip.mp4") -> str:
+    """Sanitizes a string to be a valid filename and ensures it ends with .mp4."""
     name = (name or default).strip()
     if not name.lower().endswith(".mp4"):
         name += ".mp4"
-    for bad in r'<>:"/\|?*':
+    for bad in r'<>:"/|?*':
         name = name.replace(bad, "_")
     return name
 
-def _ffmpeg_filter_escape_path(p: Path) -> str:
-    # Use forward slashes, then escape the drive-colon and single quotes
-    s = p.as_posix()
-    s = s.replace(":", r"\:").replace("'", r"\'")
-    return f"'{s}'"  # wrap for ffmpeg
 
-
-def run_ffmpeg(args: list):
+def run_ffmpeg_command(args: list):
+    """Executes an FFmpeg command and raises an exception if it fails."""
     proc = subprocess.run([FFMPEG, *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"ffmpeg failed:\n{proc.stderr}")
     return proc
 
-def download_video(url: str, outname: str = "source.mp4") -> Path:
+def download_video_from_url(url: str, outname: str = "source.mp4") -> Path:
     """Best available (falls back automatically inside yt-dlp). Merges to MP4."""
     ydl_opts = {
         "format": "bv*+ba/b",
@@ -87,7 +80,7 @@ def download_video(url: str, outname: str = "source.mp4") -> Path:
         Path(filename).replace(outname)
     return Path(outname).resolve()
 
-def cut_from_source(source_mp4: Path, start_time: str, end_time: str, out_file: Path):
+def cut_video_clip(source_mp4: Path, start_time: str, end_time: str, out_file: Path):
     """Accurate re-encode cut with audio."""
     args = [
         "-y",
@@ -100,9 +93,9 @@ def cut_from_source(source_mp4: Path, start_time: str, end_time: str, out_file: 
         "-movflags", "+faststart",
         str(out_file)
     ]
-    run_ffmpeg(args)
+    run_ffmpeg_command(args)
 
-def concat_mp4s(inputs, out_file: Path):
+def concatenate_video_clips(inputs, out_file: Path):
     """Re-encode concat (safe)."""
     fc_in = "".join([f"[{i}:v:0][{i}:a:0]" for i in range(len(inputs))])
     fc = f"{fc_in}concat=n={len(inputs)}:v=1:a=1[v][a]"
@@ -118,9 +111,9 @@ def concat_mp4s(inputs, out_file: Path):
         "-movflags", "+faststart",
         str(out_file)
     ]
-    run_ffmpeg(args)
+    run_ffmpeg_command(args)
 
-def face_tracked_vertical(input_mp4: str, output_mp4: str,
+def create_face_tracked_vertical_video(input_mp4: str, output_mp4: str,
                           out_w: int = OUT_W, out_h: int = OUT_H,
                           smooth: float = SMOOTH):
     """Center the largest face; pipe frames to ffmpeg; copy audio from original."""
@@ -207,30 +200,8 @@ def face_tracked_vertical(input_mp4: str, output_mp4: str,
         proc.stdin.close()
     proc.wait()
 
-# ---------- Vosk transcription ----------
-def ensure_vosk_model():
-    """Download a small English model if missing."""
-    if VOSK_MODEL_DIR.exists():
-        return
-    VOSK_MODEL_DIR.parent.mkdir(parents=True, exist_ok=True)
-    # Small model URL (stable & lightweight)
-    url = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
-    zip_path = VOSK_MODEL_DIR.parent / "vosk_en_small.zip"
-    print("[INFO] Downloading Vosk EN model (small)...")
-    import urllib.request, zipfile
-    urllib.request.urlretrieve(url, zip_path)
-    with zipfile.ZipFile(zip_path, "r") as z:
-        top = z.namelist()[0].split("/")[0]
-        z.extractall(VOSK_MODEL_DIR.parent)
-    # Move/rename to VOSK_MODEL_DIR
-    extracted = VOSK_MODEL_DIR.parent / top
-    if VOSK_MODEL_DIR.exists():
-        shutil.rmtree(VOSK_MODEL_DIR)
-    extracted.rename(VOSK_MODEL_DIR)
-    zip_path.unlink(missing_ok=True)
-    print("[INFO] Vosk model ready at", VOSK_MODEL_DIR)
-
-def extract_wav(input_mp4: Path, wav_path: Path, sample_rate=16000):
+def extract_audio_to_wav(input_mp4: Path, wav_path: Path, sample_rate=16000):
+    """Extracts audio from a video file to a mono 16kHz WAV file."""
     args = [
         "-y", "-i", str(input_mp4),
         "-vn",
@@ -239,85 +210,9 @@ def extract_wav(input_mp4: Path, wav_path: Path, sample_rate=16000):
         "-ar", str(sample_rate),
         str(wav_path)
     ]
-    run_ffmpeg(args)
+    run_ffmpeg_command(args)
 
-def transcribe_vosk(wav_path: Path, srt_path: Path):
-    ensure_vosk_model()
-    model = Model(str(VOSK_MODEL_DIR))
-    rec = KaldiRecognizer(model, 16000)
-    rec.SetWords(True)
-
-    subs = []
-    idx = 1
-
-    with wave.open(str(wav_path), "rb") as wf:
-        total = wf.getnframes()
-        chunk_size = 4000
-        frames = 0
-        t0 = time.time()
-        while True:
-            data = wf.readframes(chunk_size)
-            if len(data) == 0:
-                break
-            frames += chunk_size
-            if rec.AcceptWaveform(data):
-                res = json.loads(rec.Result())
-                subs += _result_to_srt(res, idx)
-                idx = len(subs) + 1
-            # else: partials ignored (we’ll handle in FinalResult)
-
-        res = json.loads(rec.FinalResult())
-        subs += _result_to_srt(res, idx)
-
-    srt_text = srtlib.compose(subs)
-    srt_path.write_text(srt_text, encoding="utf-8")
-    print(f"[OK] SRT saved -> {srt_path}")
-
-def _result_to_srt(res_json, start_idx):
-    import srt as srtlib
-    from datetime import timedelta
-    subs = []
-    if not res_json or "result" not in res_json:
-        return subs
-    words = res_json["result"]
-    if not words:
-        return subs
-
-    # group words into ~5 sec chunks for readability
-    group = []
-    grp_start = None
-    max_span = 5.0
-    idx = start_idx
-    for w in words:
-        st = float(w["start"])
-        et = float(w["end"])
-        if grp_start is None:
-            grp_start = st
-        group.append(w["word"])
-        if (et - grp_start) >= max_span:
-            text = " ".join(group)
-            subs.append(srtlib.Subtitle(
-                index=idx,
-                start=timedelta(seconds=grp_start),
-                end=timedelta(seconds=et),
-                content=text
-            ))
-            idx += 1
-            group = []
-            grp_start = None
-    if group:
-        et = float(words[-1]["end"])
-        st = grp_start if grp_start is not None else float(words[0]["start"])
-        text = " ".join(group)
-        subs.append(srtlib.Subtitle(
-            index=idx,
-            start=timedelta(seconds=st),
-            end=timedelta(seconds=et),
-            content=text
-        ))
-    return subs
-
-def transcribe_whisper(video_path: Path, srt_path: Path):
+def transcribe_video_with_whisper(video_path: Path, srt_path: Path):
     """Transcribes video using Whisper and saves SRT."""
     # Lazy import as transformers is a heavy optional dependency
     try:
@@ -338,7 +233,7 @@ def transcribe_whisper(video_path: Path, srt_path: Path):
     # 1. Extract audio to a temporary WAV file
     wav_tmp = video_path.with_suffix(".wav")
     print(f"   Extracting audio to '{wav_tmp}'...")
-    extract_wav(video_path, wav_tmp, 16000)
+    extract_audio_to_wav(video_path, wav_tmp, 16000)
 
     # 2. Load model and transcribe
     print(f"   Loading Whisper model...")
@@ -392,17 +287,17 @@ def transcribe_whisper(video_path: Path, srt_path: Path):
         print(f"   Cleanup: Removed temporary file '{wav_tmp}'")
 
 
-def _escape_for_subtitles_filter(p: Path) -> str:
+def _format_path_for_subtitle_filter(p: Path) -> str:
     """
     Make a filename safe inside -vf subtitles=... on Windows.
     - Use forward slashes
     - Escape colon (:) and single quote (')
     """
     s = p.as_posix()
-    s = s.replace(':', r'\:').replace("'", r"\'")
+    s = s.replace(':', r'\:').replace("'", r"'\'")
     return s
 
-def burn_in_subs(input_mp4: Path, srt_path: Path, out_path: Path):
+def burn_subtitles_into_video(input_mp4: Path, srt_path: Path, out_path: Path):
     """
     Burn SRT with a proper opaque black box behind each line,
     white text, bottom-center, smart wrapping, decent margins.
@@ -426,7 +321,7 @@ def burn_in_subs(input_mp4: Path, srt_path: Path, out_path: Path):
         "ScaleBorderAndShadow=yes"
     )
 
-    subfile = _escape_for_subtitles_filter(srt_path)
+    subfile = _format_path_for_subtitle_filter(srt_path)
     vf = f"subtitles=filename='{subfile}':force_style='{FORCE_STYLE}'"
 
     cmd = [
@@ -445,20 +340,13 @@ def burn_in_subs(input_mp4: Path, srt_path: Path, out_path: Path):
     print(f"[OK] Burned-in video -> {out_path}")
 
 # ---------- Main ----------
-def main():
-    # print("Input type? [1] YouTube URL  [2] Local file path")
-    # mode = input("Choose 1/2: ").strip()
-    # if mode == "1":
-    #     url = input("Enter YouTube URL: ").strip()
-    #     source_path = download_video(url)
-    # else:
-    #     path = input("Enter path to local video file: ").strip().strip('"')
-    #     source_path = Path(path).resolve()
-    #     if not source_path.exists():
-    #         print("[ERR] File not found.")
-    #         sys.exit(1)
+def main_cli_workflow():
+    """The main command-line interface workflow for processing video clips."""
+    source_path = Path("/Users/sumanthbenhur/Desktop/sermon_splitter/videos/test1/ashish_vertical.mp4")
+    
+    artifacts_dir = source_path.parent / "artifacts"
+    artifacts_dir.mkdir(exist_ok=True)
 
-    source_path = "/Users/sumanthbenhur/Desktop/sermon_splitter/ashish_vertical.mp4"
     try:
         n = int(input("How many clips? (1 for single): ").strip() or "1")
     except ValueError:
@@ -470,86 +358,37 @@ def main():
         start_time = input("Start time (HH:MM:SS): ").strip()
         end_time   = input("End time   (HH:MM:SS): ").strip()
         if n == 1:
-            out_name = ensure_mp4_name(input("Output file name (e.g., my_clip.mp4): ").strip() or "clip.mp4")
+            out_name = sanitize_mp4_filename(input("Output file name (e.g., my_clip.mp4): ").strip() or "clip.mp4")
         else:
-            out_name = ensure_mp4_name(f"part_{i}.mp4")
-        out_path = Path(out_name).resolve()
-        cut_from_source(source_path, start_time, end_time, out_path)
+            out_name = sanitize_mp4_filename(f"part_{i}.mp4")
+        out_path = artifacts_dir / out_name
+        cut_video_clip(source_path, start_time, end_time, out_path)
         print(f"Saved: {out_path}")
         clips.append(out_path)
 
     if len(clips) == 1:
         final_clip = clips[0]
     else:
-        combo_name = ensure_mp4_name(input("\nName for concatenated file (e.g., combined.mp4): ").strip() or "combined.mp4")
-        final_clip = Path(combo_name).resolve()
-        concat_mp4s(clips, final_clip)
+        combo_name = sanitize_mp4_filename(input("\nName for concatenated file (e.g., combined.mp4): ").strip() or "combined.mp4")
+        final_clip = artifacts_dir / combo_name
+        concatenate_video_clips(clips, final_clip)
         print(f"Concatenated file saved: {final_clip}")
 
-    # Optional vertical
-    make_vert = input("\nMake vertical 1080x1920 with face tracking? (y/n): ").strip().lower()
-    if make_vert in ("y", "yes"):
-        vert_out = final_clip.with_name(final_clip.stem + "_vertical.mp4")
-        face_tracked_vertical(str(final_clip), str(vert_out))
-        final_clip = vert_out
-        print(f"Vertical saved: {final_clip}")
+    # Always make vertical and add subtitles
+    print("\nMaking vertical 1080x1920 with face tracking...")
+    vert_out = final_clip.with_name(final_clip.stem + "_vertical.mp4")
+    create_face_tracked_vertical_video(str(final_clip), str(vert_out))
+    final_clip = vert_out
+    print(f"Vertical saved: {final_clip}")
 
-        # Optional subtitles
-
-        do_subs = input("\nAdd ENGLISH subtitles (Whisper) and burn-in? (y/n): ").strip().lower()
-
-        if do_subs in ("y", "yes"):
-
-            srt_out = final_clip.with_suffix(".srt")
-
-            subbed_out = final_clip.with_name(final_clip.stem + "_subbed.mp4")
-
-    
-
-            # The old Vosk-based transcription is now replaced by Whisper.
-
-            # You can uncomment these lines and comment out the whisper call to switch back.
-
-            # wav_tmp = final_clip.with_suffix(".wav")
-
-            # print("[STEP] Extracting WAV (16k mono)...")
-
-            # extract_wav(final_clip, wav_tmp, 16000)
-
-            # print("[STEP] Transcribing with Vosk (EN only)...")
-
-            # transcribe_vosk(wav_tmp, srt_out)
-
-            # try:
-
-            #     wav_tmp.unlink()
-
-            # except Exception:
-
-            #     pass
-
-    
-
-            # Transcribe using Whisper
-
-            transcribe_whisper(final_clip, srt_out)
-
-    
-
-            print("[STEP] Burning subtitles (white text on black box)...")
-
-            burn_in_subs(final_clip, srt_out, subbed_out)
-
-    
-
-            print(f"\n Done. Output: {subbed_out}")
-
-        else:
-
-            print("\n Done. Output:", final_clip)
+    print("\nAdding ENGLISH subtitles (Whisper) and burning them in...")
+    srt_out = final_clip.with_suffix(".srt")
+    subbed_out = final_clip.with_name(final_clip.stem + "_subbed.mp4")            # Transcribe using Whisper
+    transcribe_video_with_whisper(final_clip, srt_out)
+    print("[STEP] Burning subtitles (white text on black box)...")
+    burn_subtitles_into_video(final_clip, srt_out, subbed_out)
+    print(f"\n Done. Output: {subbed_out}")
 
     
 if __name__ == "__main__":
-    main()
-
-    
+    main_cli_workflow()
