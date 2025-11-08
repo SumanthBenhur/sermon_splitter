@@ -265,21 +265,17 @@ class SermonSplitterApp:
         self.transcriber = Transcriber(self.video_processor)
         self.video_utils = VideoUtils()
 
-    def run(self):
+    def run(self, num_clips, clips_data, output_filename):
         """The main command-line interface workflow for processing video clips."""
-        try:
-            n = int(input("How many clips? (1 for single): ").strip() or "1")
-        except ValueError:
-            n = 1
+        n = num_clips
 
         clips = []
-        for i in range(1, n + 1):
+        for i in range(n):
             print(f"\n--- Clip {i} ---")
-            start_time = input("Start time (HH:MM:SS): ").strip()
-            end_time = input("End time   (HH:MM:SS): ").strip()
+            start_time = clips_data[i]["start_time"]
+            end_time = clips_data[i]["end_time"]
             if n == 1:
-                out_name = self.video_utils.sanitize_mp4_filename(
-                    input("Output file name (e.g., my_clip.mp4): ").strip() or "clip.mp4")
+                out_name = self.video_utils.sanitize_mp4_filename(output_filename or "clip.mp4")
             else:
                 out_name = self.video_utils.sanitize_mp4_filename(f"part_{i}.mp4")
             out_path = self.artifacts_dir / out_name
@@ -290,8 +286,7 @@ class SermonSplitterApp:
         if len(clips) == 1:
             final_clip = clips[0]
         else:
-            combo_name = self.video_utils.sanitize_mp4_filename(
-                input("\nName for concatenated file (e.g., combined.mp4): ").strip() or "combined.mp4")
+            combo_name = self.video_utils.sanitize_mp4_filename(output_filename or "combined.mp4")
             final_clip = self.artifacts_dir / combo_name
             self.video_processor.concatenate_video_clips(clips, final_clip)
             print(f"Concatenated file saved: {final_clip}")
@@ -309,3 +304,4 @@ class SermonSplitterApp:
         print("[STEP] Burning subtitles (white text on black box)...")
         self.video_processor.burn_subtitles_into_video(final_clip, srt_out, subbed_out)
         print(f"\n Done. Output: {subbed_out}")
+        return subbed_out

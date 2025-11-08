@@ -12,4 +12,8 @@ if __name__ == "__main__":
         print("Please ensure the video file exists at the specified path.")
     else:
         app = SermonSplitterApp(source_path=source_video_path)
-        app.run()
+        # Example of how to call the refactored run method
+        num_clips = 1
+        clips_data = [{"start_time": "00:00:10", "end_time": "00:00:30"}]
+        output_filename = "my_awesome_clip.mp4"
+        app.run(num_clips, clips_data, output_filename)
