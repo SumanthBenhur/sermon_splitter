@@ -1,5 +1,3 @@
-from pathlib import Path
-from sermon_splitter import SermonSplitterApp
 
 if __name__ == "__main__":
     # The user must have a video file at this path for the script to work.
