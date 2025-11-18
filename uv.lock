@@ -910,12 +910,6 @@ wheels = [
 ]
 
 [[package]]
-name = "ffmpeg"
-version = "1.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f0/cc/3b7408b8ecf7c1d20ad480c3eaed7619857bf1054b690226e906fdf14258/ffmpeg-1.4.tar.gz", hash = "sha256:6931692c890ff21d39938433c2189747815dca0c60ddc7f9bb97f199dba0b5b9", size = 5055, upload-time = "2018-10-08T07:50:05.748Z" }
-
-[[package]]
 name = "filelock"
 version = "3.19.1"
 source = { registry = "https://pypi.org/simple" }
@@ -4337,7 +4331,6 @@ dependencies = [
     { name = "accelerate", version = "1.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "accelerate", version = "1.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "datasets" },
-    { name = "ffmpeg" },
     { name = "librosa" },
     { name = "mediapipe" },
     { name = "opencv-python" },
@@ -4345,6 +4338,8 @@ dependencies = [
     { name = "srt" },
     { name = "streamlit", version = "1.50.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "streamlit", version = "1.51.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "transformers" },
     { name = "yt-dlp", version = "2025.10.14", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "yt-dlp", version = "2025.10.22", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -4354,13 +4349,13 @@ dependencies = [
 requires-dist = [
     { name = "accelerate", specifier = ">=1.10.1" },
     { name = "datasets", specifier = ">=4.4.1" },
-    { name = "ffmpeg", specifier = ">=1.4" },
     { name = "librosa", specifier = ">=0.11.0" },
     { name = "mediapipe", specifier = ">=0.10.14" },
     { name = "opencv-python", specifier = ">=4.12.0.88" },
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "srt", specifier = ">=3.5.3" },
     { name = "streamlit", specifier = ">=1.50.0" },
+    { name = "torch" },
     { name = "transformers", specifier = ">=4.57.1" },
     { name = "yt-dlp", specifier = ">=2025.10.14" },
 ]
