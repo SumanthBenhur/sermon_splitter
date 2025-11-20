@@ -35,6 +35,18 @@ class VideoUtils:
             name = name.replace(bad, "_")
         return name
 
+    @staticmethod
+    def get_video_duration(path: str) -> float:
+        """Returns the duration of the video in seconds."""
+        cap = cv2.VideoCapture(path)
+        if not cap.isOpened():
+            return 0.0
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        duration = frame_count / fps if fps > 0 else 0.0
+        cap.release()
+        return duration
+
 class VideoProcessor:
     def __init__(self, ffmpeg_manager: FfmpegManager):
         self.ffmpeg = ffmpeg_manager
