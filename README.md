@@ -15,7 +15,7 @@ This project is a Python application designed to process sermon videos. It provi
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/SumanthBenhur/sermon_splitter.git
     cd sermon_splitter
     ```
 
