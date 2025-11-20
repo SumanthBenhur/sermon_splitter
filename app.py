@@ -1,19 +1,34 @@
 import streamlit as st
-from sermon_splitter import SermonSplitterApp, VideoUtils
+from sermon_splitter import SermonSplitterApp, VideoUtils, download_video
 from pathlib import Path
 
 st.title("Sermon Splitter")
 
-input_source = st.text_input("Enter the absolute path to a local video file:")
+input_source = st.text_input("Enter a YouTube URL or the absolute path to a local video file:")
 
 source_video_path = ""
 
 if input_source:
-    if not Path(input_source).is_file():
-        st.error("The provided path is not a valid file. Please check the path and try again.")
-        source_video_path = ""
+    # Check if it's a URL
+    if input_source.strip().startswith("http"):
+        try:
+            with st.spinner("Downloading video from YouTube... This may take a moment."):
+                # The download function will save it to a specific folder
+                source_video_path = download_video(input_source)
+            st.success(f"Video downloaded successfully to: {source_video_path}")
+        except Exception as e:
+            st.error(f"Failed to download or process YouTube video: {e}")
+            st.error("Please ensure it's a valid YouTube URL.")
+            source_video_path = ""  # Reset on failure
+    # Check if it's a local file
     else:
-        source_video_path = input_source
+        source_path = Path(input_source)
+        if not source_path.is_file():
+            st.error("The provided path is not a valid file. Please check the path and try again.")
+            st.info("If you are providing a local file, make sure to provide the absolute path.")
+            source_video_path = ""  # Reset on failure
+        else:
+            source_video_path = str(source_path)
 
 if source_video_path:
     st.video(str(source_video_path))
