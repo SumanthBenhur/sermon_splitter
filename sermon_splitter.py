@@ -7,11 +7,19 @@ import srt as srtlib
 from datetime import timedelta
 from pytubefix import YouTube
 import re
+import os
+import contextlib
+import logging
+
+import imageio_ffmpeg
+import shutil
+
 
 # ---------- Config (tweakable) ----------
 OUT_W, OUT_H = 1080, 1920
-SMOOTH = 0.88
-FFMPEG = "ffmpeg"  # assumes ffmpeg is on PATH
+SMOOTH = 0.98
+JITTER_THRESHOLD = 10  # jitter threshold in pixels
+
 
 def download_video(url: str) -> Path:
     """
@@ -46,9 +54,21 @@ def download_video(url: str) -> Path:
     print("Download complete.")
     return output_path.resolve()
 
+
 class FfmpegManager:
-    def __init__(self, ffmpeg_path: str = FFMPEG):
-        self.ffmpeg_path = ffmpeg_path
+    def __init__(self, ffmpeg_path: str = None):
+        if ffmpeg_path:
+            self.ffmpeg_path = ffmpeg_path
+        else:
+            # Try to get FFmpeg from the system path first
+            ffmpeg_executable = shutil.which("ffmpeg")
+            if ffmpeg_executable:
+                self.ffmpeg_path = ffmpeg_executable
+                print(f"[INFO] Using FFmpeg from system PATH: {self.ffmpeg_path}")
+            else:
+                # Fallback to imageio-ffmpeg if not in PATH
+                self.ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+                print(f"[INFO] Using imageio-ffmpeg binary at: {self.ffmpeg_path}")
 
     def run_command(self, args: list):
         """Executes an FFmpeg command and raises an exception if it fails."""
@@ -160,8 +180,13 @@ class VideoProcessor:
                     _, x, y, w, h = best
                     cx = (x + w / 2) * src_w
                     cy = (y + h / 2) * src_h
-                    cx_s = smooth * cx_s + (1 - smooth) * cx
-                    cy_s = smooth * cy_s + (1 - smooth) * cy
+                    
+                    # Only update if movement exceeds threshold
+                    if abs(cx - cx_s) > JITTER_THRESHOLD:
+                        cx_s = smooth * cx_s + (1 - smooth) * cx
+                    
+                    if abs(cy - cy_s) > JITTER_THRESHOLD:
+                        cy_s = smooth * cy_s + (1 - smooth) * cy
                 else:
                     cx_s = smooth * cx_s + (1 - smooth) * (src_w / 2)
                     cy_s = smooth * cy_s + (1 - smooth) * (src_h / 2)
@@ -206,30 +231,26 @@ class VideoProcessor:
         self.ffmpeg.run_command(args)
 
     def burn_subtitles_into_video(self, input_mp4: Path, srt_path: Path, out_path: Path):
-        """Burn SRT with a proper opaque black box behind each line."""
-        FORCE_STYLE = (
-            "FontName=Arial,"
-            "FontSize=12,"
-            "PrimaryColour=&H00FFFFFF&,"
-            "BackColour=&H00000000&,"
-            "BorderStyle=3,"
-            "Outline=0,Shadow=0,"
-            "WrapStyle=2,Alignment=2,MarginV=80,"
-            "ScaleBorderAndShadow=yes"
-        )
+        """Burn SRT subtitles into a video."""
+        # Copy SRT to CWD for ffmpeg compatibility
+        cwd_srt_path = Path("temp_subtitles.srt")
+        shutil.copy(srt_path, cwd_srt_path)
 
-        vf = f"subtitles=filename='{srt_path}':force_style='{FORCE_STYLE}'"
+        vf = f"subtitles=filename=\'{cwd_srt_path.name}\'"
         args = [
             "-y",
             "-i", str(input_mp4),
             "-vf", vf,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
             "-pix_fmt", "yuv420p",
             "-c:a", "copy",
             "-movflags", "+faststart",
             str(out_path)
         ]
         self.ffmpeg.run_command(args)
+
+        # Cleanup: Remove the temporary SRT file from CWD
+        if cwd_srt_path.exists():
+            cwd_srt_path.unlink()
 
 
 class Transcriber:
@@ -249,25 +270,36 @@ class Transcriber:
         print(f"\n[STEP] Transcribing with Whisper ({MODEL_NAME})...")
 
         wav_tmp = video_path.with_suffix(".wav")
-        print(f"   Extracting audio to '{wav_tmp}'...")
+        print(f"   Extracting audio to \'{wav_tmp}\'...")
         self.video_processor.extract_audio_to_wav(video_path, wav_tmp, 16000)
 
+        # Set FFMPEG_BINARY for soundfile/librosa used by transformers
+        os.environ["FFMPEG_BINARY"] = self.video_processor.ffmpeg.ffmpeg_path
+        # Disable HuggingFace progress bars and set verbosity to suppress console output
+        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+        os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+
         print(f"   Loading Whisper model...")
-        transcriber = pipeline("automatic-speech-recognition", model=MODEL_NAME, device=-1)
-        print(f"   Model loaded. Starting transcription (this may take a while)...")
+        # Suppress verbose output from transformers
+        logging.getLogger("transformers").setLevel(logging.ERROR)
+        
+        # Redirect stdout/stderr to devnull during model loading and transcription to prevent WinError 6
+        with open(os.devnull, 'w') as devnull:
+            with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+                transcriber = pipeline("automatic-speech-recognition", model=MODEL_NAME, device=-1)
+                print(f"   Model loaded. Starting transcription (this may take a while)...")
 
-        # CUSTOM_PROMPT = "The sermon Genesis 20, where Abhraham calls Sarah his sister. "
-
-        transcription_result = transcriber(
-            str(wav_tmp),
-            chunk_length_s=30,
-            return_timestamps=True,
-            # generate_kwargs={
-            #     "task": "transcribe",
-            #     # UNCOMMENT THIS LINE and use your custom prompt
-            #     "prompt_ids": transcriber.tokenizer.encode(CUSTOM_PROMPT, add_special_tokens=False)
-            # }
-        )
+                # CUSTOM_PROMPT = "The sermon Genesis 20, where Abhraham calls Sarah his sister. "
+                
+                transcription_result = transcriber(
+                    str(wav_tmp),
+                    chunk_length_s=30,
+                    return_timestamps=True,
+                    # generate_kwargs={
+                    #     "task": "transcribe",
+                    #     "prompt_ids": transcriber.tokenizer.encode(CUSTOM_PROMPT, add_special_tokens=False)
+                    # }
+                )
 
         full_text = transcription_result["text"].strip()
         print("\nTranscription complete.")
@@ -290,7 +322,7 @@ class Transcriber:
 
         if wav_tmp.exists():
             wav_tmp.unlink()
-            print(f"   Cleanup: Removed temporary file '{wav_tmp}'")
+            print(f"   Cleanup: Removed temporary file \'{wav_tmp}\'")
 
     def refit_srt(
         self,
@@ -471,8 +503,9 @@ class Transcriber:
 
 
 class SermonSplitterApp:
-    def __init__(self, source_path: str):
+    def __init__(self, source_path: str, base_work_dir: Path = Path(".")):
         self.source_path = Path(source_path)
+        self.base_work_dir = base_work_dir # Initialize base_work_dir
         self.artifacts_dir = self.source_path.parent / "artifacts"
         self.artifacts_dir.mkdir(exist_ok=True)
 
@@ -519,10 +552,10 @@ class SermonSplitterApp:
         self.transcriber.transcribe_video_with_whisper(final_clip, srt_out)
 
         print("[STEP] Refitting subtitles for better readability...")
-        refit_srt_out = final_clip.with_suffix(".refit.srt")
+        refit_srt_out = self.artifacts_dir / "temp_subtitles.srt"
         self.transcriber.refit_srt(srt_out, refit_srt_out)
 
-        print("[STEP] Burning subtitles (white text on black box)...")
+        print("[STEP] Burning subtitles...")
         self.video_processor.burn_subtitles_into_video(final_clip, refit_srt_out, subbed_out)
         print(f"\n Done. Output: {subbed_out}")
         return subbed_out
