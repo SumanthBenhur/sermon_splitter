@@ -24,16 +24,30 @@ JITTER_THRESHOLD = 10  # jitter threshold in pixels
 def download_video(url: str) -> Path:
     """
     Downloads a YouTube video and returns the path to the downloaded file.
-    It downloads a progressive stream (video + audio).
+    Uses adaptive streams (separate video + audio) to get the highest quality,
+    then merges them using FFmpeg.
     The file is saved in 'videos/youtube_downloads/'.
     """
     yt = YouTube(url)
     print(f"Downloading video from URL: {url}")
     print(f"Video Title: {yt.title}")
 
-    stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
-    if not stream:
-        raise RuntimeError("No progressive mp4 stream found for this video.")
+    # Get highest resolution video stream (adaptive = video only)
+    video_stream = yt.streams.filter(
+        adaptive=True, 
+        file_extension='mp4', 
+        only_video=True
+    ).order_by('resolution').desc().first()
+    
+    # Get highest quality audio stream (adaptive = audio only)
+    audio_stream = yt.streams.filter(
+        adaptive=True, 
+        file_extension='mp4', 
+        only_audio=True
+    ).order_by('abr').desc().first()
+    
+    if not video_stream or not audio_stream:
+        raise RuntimeError("No adaptive mp4 streams found for this video.")
 
     download_dir = Path("videos/youtube_downloads")
     download_dir.mkdir(parents=True, exist_ok=True)
@@ -46,11 +60,45 @@ def download_video(url: str) -> Path:
     
     output_path = download_dir / output_filename
 
-    print(f"Selected stream: {stream}")
-    print(f"Downloading to: {output_path}...")
+    print(f"Selected video stream: {video_stream.resolution} @ {video_stream.fps}fps")
+    print(f"Selected audio stream: {audio_stream.abr}")
+    print(f"Output: {output_path}")
 
-    stream.download(output_path=str(download_dir), filename=output_filename)
-
+    # Download video and audio separately
+    temp_video_path = download_dir / f"temp_video_{sanitized_title}.mp4"
+    temp_audio_path = download_dir / f"temp_audio_{sanitized_title}.mp4"
+    
+    print("Downloading video stream...")
+    video_stream.download(output_path=str(download_dir), filename=temp_video_path.name)
+    
+    print("Downloading audio stream...")
+    audio_stream.download(output_path=str(download_dir), filename=temp_audio_path.name)
+    
+    # Merge using FFmpeg
+    print("Merging video and audio with FFmpeg...")
+    ffmpeg_executable = shutil.which("ffmpeg")
+    if not ffmpeg_executable:
+        ffmpeg_executable = imageio_ffmpeg.get_ffmpeg_exe()
+    
+    merge_result = subprocess.run([
+        ffmpeg_executable, '-y',
+        '-i', str(temp_video_path),
+        '-i', str(temp_audio_path),
+        '-c:v', 'copy',  # Copy video without re-encoding
+        '-c:a', 'aac',   # Re-encode audio to AAC for compatibility
+        '-strict', 'experimental',
+        str(output_path)
+    ], capture_output=True, text=True)
+    
+    if merge_result.returncode != 0:
+        raise RuntimeError(f"FFmpeg merge failed:\n{merge_result.stderr}")
+    
+    # Clean up temporary files
+    if temp_video_path.exists():
+        temp_video_path.unlink()
+    if temp_audio_path.exists():
+        temp_audio_path.unlink()
+    
     print("Download complete.")
     return output_path.resolve()
 
