@@ -18,7 +18,12 @@ class FfmpegManager:
 
     def run_command(self, args: list):
         """Executes an FFmpeg command and raises an exception if it fails."""
-        proc = subprocess.run([self.ffmpeg_path, *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc = subprocess.run(
+            [self.ffmpeg_path, *args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
         if proc.returncode != 0:
             raise RuntimeError(f"ffmpeg failed:\n{proc.stderr}")
         return proc
@@ -35,22 +40,42 @@ class VideoUtils:
             name = name.replace(bad, "_")
         return name
 
+
 class VideoProcessor:
     def __init__(self, ffmpeg_manager: FfmpegManager):
         self.ffmpeg = ffmpeg_manager
 
-    def cut_video_clip(self, source_mp4: Path, start_time: str, end_time: str, out_file: Path):
+    def cut_video_clip(
+        self, source_mp4: Path, start_time: str, end_time: str, out_file: Path
+    ):
         """Accurate re-encode cut with audio."""
         args = [
             "-y",
-            "-i", str(source_mp4),
-            "-ss", start_time, "-to", end_time,
-            "-map", "0:v:0", "-map", "0:a:0?",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k",
-            "-movflags", "+faststart",
-            str(out_file)
+            "-i",
+            str(source_mp4),
+            "-ss",
+            start_time,
+            "-to",
+            end_time,
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a:0?",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-movflags",
+            "+faststart",
+            str(out_file),
         ]
         self.ffmpeg.run_command(args)
 
@@ -62,21 +87,42 @@ class VideoProcessor:
         for p in inputs:
             args += ["-i", str(p)]
         args += [
-            "-filter_complex", fc,
-            "-map", "[v]", "-map", "[a]",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k",
-            "-movflags", "+faststart",
-            str(out_file)
+            "-filter_complex",
+            fc,
+            "-map",
+            "[v]",
+            "-map",
+            "[a]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-movflags",
+            "+faststart",
+            str(out_file),
         ]
         self.ffmpeg.run_command(args)
 
-    def create_face_tracked_vertical_video(self, input_mp4: str, output_mp4: str,
-                                           out_w: int = OUT_W, out_h: int = OUT_H,
-                                           smooth: float = SMOOTH):
+    def create_face_tracked_vertical_video(
+        self,
+        input_mp4: str,
+        output_mp4: str,
+        out_w: int = OUT_W,
+        out_h: int = OUT_H,
+        smooth: float = SMOOTH,
+    ):
         """Center the largest face; pipe frames to ffmpeg; copy audio from original."""
-        def clamp(v, lo, hi): return max(lo, min(hi, v))
+
+        def clamp(v, lo, hi):
+            return max(lo, min(hi, v))
 
         cap = cv2.VideoCapture(input_mp4)
         if not cap.isOpened():
@@ -90,24 +136,45 @@ class VideoProcessor:
 
         ff_cmd = [
             "-y",
-            "-f", "rawvideo",
-            "-pix_fmt", "bgr24",
-            "-s", f"{out_w}x{out_h}",
-            "-r", f"{fps:.3f}",
-            "-i", "-",
-            "-i", input_mp4,
-            "-map", "0:v:0", "-map", "1:a:0?",
-            "-c:v", "libx264", "-preset", "slow", "-crf", "16",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "copy",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "bgr24",
+            "-s",
+            f"{out_w}x{out_h}",
+            "-r",
+            f"{fps:.3f}",
+            "-i",
+            "-",
+            "-i",
+            input_mp4,
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0?",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "slow",
+            "-crf",
+            "16",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "copy",
             "-shortest",
-            "-movflags", "+faststart",
-            output_mp4
+            "-movflags",
+            "+faststart",
+            output_mp4,
         ]
-        proc = subprocess.Popen([self.ffmpeg.ffmpeg_path, *ff_cmd], stdin=subprocess.PIPE)
+        proc = subprocess.Popen(
+            [self.ffmpeg.ffmpeg_path, *ff_cmd], stdin=subprocess.PIPE
+        )
 
         cx_s, cy_s = src_w / 2, src_h / 2
-        with mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.4) as mp_fd:
+        with mp.solutions.face_detection.FaceDetection(
+            model_selection=1, min_detection_confidence=0.4
+        ) as mp_fd:
             while True:
                 ok, frame = cap.read()
                 if not ok:
@@ -135,7 +202,9 @@ class VideoProcessor:
                 scale = max(out_h / src_h, out_w / src_w)
                 new_w = max(out_w, int(round(src_w * scale)))
                 new_h = max(out_h, int(round(src_h * scale)))
-                frame_resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+                frame_resized = cv2.resize(
+                    frame, (new_w, new_h), interpolation=cv2.INTER_CUBIC
+                )
 
                 cx_scaled = cx_s * scale
                 cy_scaled = cy_s * scale
@@ -147,7 +216,9 @@ class VideoProcessor:
                 y1 = y0 + out_h
                 crop = frame_resized[y0:y1, x0:x1]
                 if crop is None or crop.shape[1] != out_w or crop.shape[0] != out_h:
-                    crop = cv2.resize(frame_resized, (out_w, out_h), interpolation=cv2.INTER_CUBIC)
+                    crop = cv2.resize(
+                        frame_resized, (out_w, out_h), interpolation=cv2.INTER_CUBIC
+                    )
 
                 try:
                     proc.stdin.write(crop.tobytes())
@@ -162,16 +233,23 @@ class VideoProcessor:
     def extract_audio_to_wav(self, input_mp4: Path, wav_path: Path, sample_rate=16000):
         """Extracts audio from a video file to a mono 16kHz WAV file."""
         args = [
-            "-y", "-i", str(input_mp4),
+            "-y",
+            "-i",
+            str(input_mp4),
             "-vn",
-            "-acodec", "pcm_s16le",
-            "-ac", "1",
-            "-ar", str(sample_rate),
-            str(wav_path)
+            "-acodec",
+            "pcm_s16le",
+            "-ac",
+            "1",
+            "-ar",
+            str(sample_rate),
+            str(wav_path),
         ]
         self.ffmpeg.run_command(args)
 
-    def burn_subtitles_into_video(self, input_mp4: Path, srt_path: Path, out_path: Path):
+    def burn_subtitles_into_video(
+        self, input_mp4: Path, srt_path: Path, out_path: Path
+    ):
         """Burn SRT with a proper opaque black box behind each line."""
         FORCE_STYLE = (
             "FontName=Arial,"
@@ -187,13 +265,23 @@ class VideoProcessor:
         vf = f"subtitles=filename='{srt_path}':force_style='{FORCE_STYLE}'"
         args = [
             "-y",
-            "-i", str(input_mp4),
-            "-vf", vf,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "copy",
-            "-movflags", "+faststart",
-            str(out_path)
+            "-i",
+            str(input_mp4),
+            "-vf",
+            vf,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "copy",
+            "-movflags",
+            "+faststart",
+            str(out_path),
         ]
         self.ffmpeg.run_command(args)
 
@@ -207,7 +295,9 @@ class Transcriber:
         try:
             from transformers import pipeline
         except ImportError:
-            print("[ERR] `transformers` and `torch` are required for Whisper. Please install them.")
+            print(
+                "[ERR] `transformers` and `torch` are required for Whisper. Please install them."
+            )
             print("      pip install transformers torch")
             sys.exit(1)
 
@@ -218,9 +308,11 @@ class Transcriber:
         print(f"   Extracting audio to '{wav_tmp}'...")
         self.video_processor.extract_audio_to_wav(video_path, wav_tmp, 16000)
 
-        print(f"   Loading Whisper model...")
-        transcriber = pipeline("automatic-speech-recognition", model=MODEL_NAME, device=-1)
-        print(f"   Model loaded. Starting transcription (this may take a while)...")
+        print("   Loading Whisper model...")
+        transcriber = pipeline(
+            "automatic-speech-recognition", model=MODEL_NAME, device=-1
+        )
+        print("   Model loaded. Starting transcription (this may take a while)...")
 
         # CUSTOM_PROMPT = "The sermon Genesis 20, where Abhraham calls Sarah his sister. "
 
@@ -243,12 +335,14 @@ class Transcriber:
             start, end = chunk["timestamp"]
             if start is None or end is None:
                 continue
-            subs.append(srtlib.Subtitle(
-                index=i + 1,
-                start=timedelta(seconds=start),
-                end=timedelta(seconds=end),
-                content=chunk["text"].strip()
-            ))
+            subs.append(
+                srtlib.Subtitle(
+                    index=i + 1,
+                    start=timedelta(seconds=start),
+                    end=timedelta(seconds=end),
+                    content=chunk["text"].strip(),
+                )
+            )
 
         srt_content = srtlib.compose(subs)
         srt_path.write_text(srt_content, encoding="utf-8")
@@ -351,7 +445,9 @@ class Transcriber:
             if not text:
                 continue
 
-            vis_chunks = chunk_text_to_lines(text, max_chars=max_chars, max_lines=max_lines)
+            vis_chunks = chunk_text_to_lines(
+                text, max_chars=max_chars, max_lines=max_lines
+            )
             if not vis_chunks:
                 continue
 
@@ -362,52 +458,59 @@ class Transcriber:
             dur_per_char = base_dur / total_chars
 
             cur_start = seconds(it.start)
-            
+
             final_chunks = []
             for ch in vis_chunks:
                 est_dur = (len(ch.replace("\n", " ")) or 1) * dur_per_char
-                
+
                 if est_dur > max_duration:
                     # This chunk is too long. Split it proportionally by character count.
                     num_splits = int(est_dur / max_duration) + 1
                     words = ch.replace("\n", " ").split()
                     words_per_split = (len(words) + num_splits - 1) // num_splits
-                    
+
                     # First, create all the sub-chunks of text
                     sub_chunks_text = []
                     for i in range(0, len(words), words_per_split):
-                        sub_words = words[i:i+words_per_split]
-                        if not sub_words: continue
-                        
-                        sub_text = "\n".join(greedy_wrap(sub_words, max_chars)[:max_lines])
-                        if not sub_text.strip(): continue
+                        sub_words = words[i : i + words_per_split]
+                        if not sub_words:
+                            continue
+
+                        sub_text = "\n".join(
+                            greedy_wrap(sub_words, max_chars)[:max_lines]
+                        )
+                        if not sub_text.strip():
+                            continue
                         sub_chunks_text.append(sub_text)
 
                     # Then, calculate total characters of the new sub-chunks
-                    total_sub_chars = sum(len(s.replace("\n", " ")) for s in sub_chunks_text) or 1
-                    
+                    total_sub_chars = (
+                        sum(len(s.replace("\n", " ")) for s in sub_chunks_text) or 1
+                    )
+
                     # Finally, distribute the original estimated duration proportionally
                     for sub_text in sub_chunks_text:
                         sub_chars = len(sub_text.replace("\n", " "))
                         proportional_sub_dur = est_dur * (sub_chars / total_sub_chars)
-                        final_chunks.append({'text': sub_text, 'duration': proportional_sub_dur})
+                        final_chunks.append(
+                            {"text": sub_text, "duration": proportional_sub_dur}
+                        )
                 else:
-                    final_chunks.append({'text': ch, 'duration': est_dur})
+                    final_chunks.append({"text": ch, "duration": est_dur})
 
             # Create SRT items from the final chunks
             for chunk in final_chunks:
-                seg_dur = max(min_duration, chunk['duration'])
+                seg_dur = max(min_duration, chunk["duration"])
                 st = cur_start
                 en = st + seg_dur
-                
-                new_items.append(srtlib.Subtitle(
-                    index=idx,
-                    start=td(st),
-                    end=td(en),
-                    content=chunk['text']
-                ))
+
+                new_items.append(
+                    srtlib.Subtitle(
+                        index=idx, start=td(st), end=td(en), content=chunk["text"]
+                    )
+                )
                 idx += 1
-                cur_start = en # Chain contiguously
+                cur_start = en  # Chain contiguously
 
         # Post-process to sort and fix any overlaps
         if new_items:
@@ -415,8 +518,8 @@ class Transcriber:
 
             for i in range(len(new_items) - 1):
                 current_sub = new_items[i]
-                next_sub = new_items[i+1]
-                
+                next_sub = new_items[i + 1]
+
                 # Add safety gap between subtitles that were not originally contiguous
                 # This is a heuristic: if the gap is very small, they were likely split
                 if next_sub.start - current_sub.end < timedelta(seconds=safety_gap * 2):
@@ -424,16 +527,20 @@ class Transcriber:
 
                 if current_sub.end > next_sub.start:
                     current_sub.end = next_sub.start - timedelta(microseconds=1)
-                
+
                 if current_sub.end <= current_sub.start:
-                    current_sub.end = current_sub.start + timedelta(seconds=min_duration)
+                    current_sub.end = current_sub.start + timedelta(
+                        seconds=min_duration
+                    )
 
         # Re-index cleanly
         for i, it in enumerate(new_items, 1):
             it.index = i
 
         out_srt_path.write_text(srtlib.compose(new_items), encoding="utf-8")
-        print(f"[OK] Refitted SRT -> {out_srt_path}  (max_chars={max_chars}, max_lines={max_lines}, max_duration={max_duration}s)")
+        print(
+            f"[OK] Refitted SRT -> {out_srt_path}  (max_chars={max_chars}, max_lines={max_lines}, max_duration={max_duration}s)"
+        )
 
 
 class SermonSplitterApp:
@@ -457,25 +564,33 @@ class SermonSplitterApp:
             start_time = clips_data[i]["start_time"]
             end_time = clips_data[i]["end_time"]
             if n == 1:
-                out_name = self.video_utils.sanitize_mp4_filename(output_filename or "clip.mp4")
+                out_name = self.video_utils.sanitize_mp4_filename(
+                    output_filename or "clip.mp4"
+                )
             else:
                 out_name = self.video_utils.sanitize_mp4_filename(f"part_{i}.mp4")
             out_path = self.artifacts_dir / out_name
-            self.video_processor.cut_video_clip(self.source_path, start_time, end_time, out_path)
+            self.video_processor.cut_video_clip(
+                self.source_path, start_time, end_time, out_path
+            )
             print(f"Saved: {out_path}")
             clips.append(out_path)
 
         if len(clips) == 1:
             final_clip = clips[0]
         else:
-            combo_name = self.video_utils.sanitize_mp4_filename(output_filename or "combined.mp4")
+            combo_name = self.video_utils.sanitize_mp4_filename(
+                output_filename or "combined.mp4"
+            )
             final_clip = self.artifacts_dir / combo_name
             self.video_processor.concatenate_video_clips(clips, final_clip)
             print(f"Concatenated file saved: {final_clip}")
 
         print("\nMaking vertical 1080x1920 with face tracking...")
         vert_out = final_clip.with_name(final_clip.stem + "_vertical.mp4")
-        self.video_processor.create_face_tracked_vertical_video(str(final_clip), str(vert_out))
+        self.video_processor.create_face_tracked_vertical_video(
+            str(final_clip), str(vert_out)
+        )
         final_clip = vert_out
         print(f"Vertical saved: {final_clip}")
 
@@ -489,6 +604,8 @@ class SermonSplitterApp:
         self.transcriber.refit_srt(srt_out, refit_srt_out)
 
         print("[STEP] Burning subtitles (white text on black box)...")
-        self.video_processor.burn_subtitles_into_video(final_clip, refit_srt_out, subbed_out)
+        self.video_processor.burn_subtitles_into_video(
+            final_clip, refit_srt_out, subbed_out
+        )
         print(f"\n Done. Output: {subbed_out}")
         return subbed_out

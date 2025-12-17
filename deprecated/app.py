@@ -1,5 +1,5 @@
 import streamlit as st
-from sermon_splitter import SermonSplitterApp, VideoUtils
+from sermon_splitter import SermonSplitterApp
 from pathlib import Path
 
 st.title("Sermon Splitter")
@@ -10,7 +10,9 @@ source_video_path = ""
 
 if input_source:
     if not Path(input_source).is_file():
-        st.error("The provided path is not a valid file. Please check the path and try again.")
+        st.error(
+            "The provided path is not a valid file. Please check the path and try again."
+        )
         source_video_path = ""
     else:
         source_video_path = input_source
@@ -22,9 +24,9 @@ if source_video_path:
 
     clips_data = []
     for i in range(num_clips):
-        st.subheader(f"Clip {i+1}")
-        start_time = st.text_input(f"Start time (HH:MM:SS)", key=f"start_{i}")
-        end_time = st.text_input(f"End time (HH:MM:SS)", key=f"end_{i}")
+        st.subheader(f"Clip {i + 1}")
+        start_time = st.text_input("Start time (HH:MM:SS)", key=f"start_{i}")
+        end_time = st.text_input("End time (HH:MM:SS)", key=f"end_{i}")
         clips_data.append({"start_time": start_time, "end_time": end_time})
 
     output_filename = st.text_input("Output file name (e.g., my_clip.mp4)", "clip.mp4")
@@ -37,7 +39,7 @@ if source_video_path:
                 with st.spinner("Processing video... This may take a while."):
                     app = SermonSplitterApp(source_path=str(source_video_path))
                     final_output_path = app.run(num_clips, clips_data, output_filename)
-                    st.success(f"Video processing complete!")
+                    st.success("Video processing complete!")
                     st.info(f"Output file: {final_output_path}")
 
                     with open(final_output_path, "rb") as f:
@@ -45,7 +47,7 @@ if source_video_path:
                             label="Download Processed Video",
                             data=f,
                             file_name=Path(final_output_path).name,
-                            mime="video/mp4"
+                            mime="video/mp4",
                         )
 
             except Exception as e:
