@@ -32,54 +32,38 @@ This project is a Python application designed to process sermon videos. It provi
 3.  **Install FFmpeg:**
     This project relies on FFmpeg for video processing. You must have FFmpeg installed and available in your system's PATH. You can download it from [ffmpeg.org](https://ffmpeg.org/download.html).
 
+## Configuration
+
+To ensure the code runs reliably across different environments, use the `PROJECT_ROOT` and `VIDEOS_DIR` constants from `config.py` instead of hardcoding absolute paths.
+
+```python
+from config import PROJECT_ROOT, VIDEOS_DIR
+
+# Example usage
+input_video = VIDEOS_DIR / "my_video.mp4"
+```
+
+## Development
+
+### Pre-commit Hooks
+
+This project uses `pre-commit` to ensure code quality. Before committing any changes, please install the git hooks:
+
+```bash
+pre-commit install
+```
+
+This will automatically run checks (like `rules` and `ruff`) whenever you try to commit changes.
+
 ## Usage
 
-### Web Application
+### Deprecated Functionality
 
-The easiest way to use the Sermon Splitter is through the Streamlit web interface.
+> **Note:** The previous Streamlit app and core script have been moved to the `deprecated/` directory and will eventually be removed.
 
-1.  **Run the Streamlit app:**
-    ```bash
-    streamlit run app.py
-    ```
+If you still need to run the old application, you can execute it from the project root:
 
-2.  **Open your browser:**
-    Navigate to the local URL provided by Streamlit (usually `http://localhost:8501`).
-
-3.  **Process your video:**
-    - Enter the absolute path to your local video file.
-    - Specify the number of clips you want to create.
-    - For each clip, provide the start and end times in `HH:MM:SS` format.
-    - Enter an output filename for the final video.
-    - Click "Process Video" to start.
-
-### Command-Line Interface
-
-For more direct control, you can use the `main.py` script. Note that you will need to modify the script to change the input file and clip timings.
-
-1.  **Edit `main.py`:**
-    Open `main.py` and change the `source_video_path`, `clips_data`, and `output_filename` variables as needed.
-
-2.  **Run the script:**
-    ```bash
-    python main.py
-    ```
-
-## Dependencies
-
-This project uses the following major libraries:
-
-- [Streamlit](https://streamlit.io/): For the web-based user interface.
-- [OpenCV](https://opencv.org/): For video manipulation and frame processing.
-- [MediaPipe](https://mediapipe.dev/): For face detection and tracking.
-- [Transformers](https://huggingface.co/docs/transformers/index) (by Hugging Face): For using the Whisper model for transcription.
-- [PyTorch](https://pytorch.org/): As a backend for the Whisper model.
-- [FFmpeg](https://ffmpeg.org/): For all heavy-lifting video processing tasks (cutting, concatenating, etc.).
-
-## Project Structure
-
-- `app.py`: The main entry point for the Streamlit web application.
-- `main.py`: A command-line script for running the video processing pipeline.
-- `sermon_splitter.py`: The core module containing all the logic for video processing, transcription, and subtitle generation.
-- `videos/`: A directory for storing input videos and generated artifacts.
-- `pyproject.toml`: The project's dependency and metadata file.
+**Web Application:**
+```bash
+streamlit run deprecated/app.py
+```
