@@ -14,9 +14,10 @@ dependencies = [
     "srt>=3.5.3",
     "streamlit>=1.50.0",
     "transformers>=4.57.1",
-    "yt-dlp>=2025.10.14",
     "torch",
     "pre-commit>=4.3.0",
+    "pytubefix>=10.3.4",
+    "imageio-ffmpeg>=0.6.0",
 ]
 
 [dependency-groups]
