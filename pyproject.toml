@@ -18,6 +18,7 @@ dependencies = [
     "pre-commit>=4.3.0",
     "pytubefix>=10.3.4",
     "imageio-ffmpeg>=0.6.0",
+    "ffmpeg>=1.4",
 ]
 
 [dependency-groups]
