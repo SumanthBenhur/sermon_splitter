@@ -1,19 +1,18 @@
 from pytube import YouTube
 
+
 def download_with_pytube(url: str, output_dir):
     yt = YouTube(url)
 
     video_stream = (
-        yt.streams
-        .filter(adaptive=True, file_extension="mp4", only_video=True)
+        yt.streams.filter(adaptive=True, file_extension="mp4", only_video=True)
         .order_by("resolution")
         .desc()
         .first()
     )
 
     audio_stream = (
-        yt.streams
-        .filter(adaptive=True, file_extension="mp4", only_audio=True)
+        yt.streams.filter(adaptive=True, file_extension="mp4", only_audio=True)
         .order_by("abr")
         .desc()
         .first()

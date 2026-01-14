@@ -6,6 +6,7 @@ from utils.metadata_utils import (
 from .pytube_downloader import download_with_pytube
 from .ytdlp_downloader import download_with_ytdlp
 
+
 def download_video(url):
     try:
         print("Attempting download with Pytube...")
@@ -16,7 +17,7 @@ def download_video(url):
         print("Pytube download successful!")
         return folder, "pytube"
 
-    except Exception as e :
+    except Exception as e:
         print(f"Pytube failed with error: {e}. Falling back to yt-dlp...")
         title, duration = get_metadata_with_ytdlp(url)
         folder = create_download_folder_from_title(title)
