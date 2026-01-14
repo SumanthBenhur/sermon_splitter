@@ -4,22 +4,22 @@ import subprocess
 
 
 class Ffmeg:
-    def trim_file(Video, Starttime, Endtime, Audio=None):
+    def trim_file(video, starttime, endtime, audio=None):
         """
-        This Function trims the Video and return Audio and Video (as a tuple)
+        This Function trims the video and return audio and video (as a tuple)
 
-        :param Video: The Main File or Video Component of the file
-        :param Starttime: The Trimming Start Time
-        :param Endtime: The Trimming Stop Time
-        :param Audio: (Optional) Audio Component of the file
+        :param video: The Main File or video Component of the file
+        :param starttime: The Trimming Start Time
+        :param endtime: The Trimming Stop Time
+        :param audio: (Optional) audio Component of the file
         """
-        if Audio:
-            Trimmed_video = Video.filter("trim", start=Starttime, end=Endtime)
-            Trimmed_audio = Audio.filter("atrim", start=Starttime, end=Endtime)
+        if audio:
+            trimmed_video = video.filter("trim", start=starttime, end=endtime)
+            trimmed_audio = audio.filter("atrim", start=starttime, end=endtime)
         else:
-            Trimmed_video = Video.video.filter("trim", start=Starttime, end=Endtime)
-            Trimmed_audio = Video.audio.filter("atrim", start=Starttime, end=Endtime)
-        return Trimmed_audio, Trimmed_video
+            trimmed_video = video.video.filter("trim", start=starttime, end=endtime)
+            trimmed_audio = video.audio.filter("atrim", start=starttime, end=endtime)
+        return trimmed_audio, trimmed_video
 
     def __init__(self, ffmpeg_path: Optional[str] = None) -> None:
         """
@@ -115,7 +115,7 @@ def extract_audio_to_wav(
     """
     Extract audio from a video file and save it as a WAV file.
 
-    Audio is converted to mono and resampled to the specified rate.
+    audio is converted to mono and resampled to the specified rate.
 
     Args:
         input_mp4: Source video file.

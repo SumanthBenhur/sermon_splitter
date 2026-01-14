@@ -19,12 +19,12 @@ def trim_file(Video, Starttime, Endtime, Audio=None):
     return Trimmed_audio, Trimmed_video
 
 
-test_file = ffmpeg.input("Experiment/Isaac/test_video.mp4")
+test_file = ffmpeg.input("experimental/Isaac/test_video.mp4")
 ffmpeg.output(
-    trim_file(test_file.video, "00:00:00", "00:00:10", Audio=test_file.audio),
+    *trim_file(test_file.video, "00:00:00", "00:00:10", Audio=test_file.audio),
     "experimental/Isaac/test_export1.mp4",
 ).run()
 ffmpeg.output(
-    trim_file(test_file, "00:00:10", "00:00:11"),
+    *trim_file(test_file, "00:00:10", "00:00:11"),
     "experimental/Isaac/test_export2.mp4",
 ).run()
