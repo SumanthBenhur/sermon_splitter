@@ -19,6 +19,7 @@ dependencies = [
     "pytubefix>=10.3.4",
     "imageio-ffmpeg>=0.6.0",
     "ffmpeg-python>=0.2.0",
+    "pytest>=8.4.2",
 ]
 
 [dependency-groups]
