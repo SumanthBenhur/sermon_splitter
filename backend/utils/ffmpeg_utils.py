@@ -28,7 +28,24 @@ class Ffmeg:
         Raises:
             RuntimeError: If the ffmpeg command fails.
         """
-        pass
+        cmd = ["ffmpeg", *args]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            return result
+
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                f"FFmpeg command failed with exit code {e.returncode}\n"
+                f"Command: {' '.join(cmd)}\n"
+                f"STDERR:\n{e.stderr}"
+            ) from e
 
     def get_ffmpeg_path(self) -> str:
         """
@@ -38,6 +55,49 @@ class Ffmeg:
             Absolute path to ffmpeg as a string.
         """
         pass
+
+    def merge_audio_video(
+        self, video_path: Path, audio_path: Path, output_path: Path
+    ) -> None:
+        """
+        Combine a video file with an audio file into a single output video.
+
+        Args:
+            video_path: Path to the input video file.
+            audio_path: Path to the input audio file.
+            output_path: Path to the output merged video file.
+        """
+
+        if not video_path.exists():
+            raise FileNotFoundError(f"Video file not found: {video_path.resolve()}")
+
+        if not audio_path.exists():
+            raise FileNotFoundError(f"Audio file not found: {audio_path.resolve()}")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        args = [
+            "-i",
+            str(video_path),
+            "-i",
+            str(audio_path),
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-movflags",
+            "+faststart",
+            "-shortest",
+            "-y",
+            str(output_path),
+        ]
+
+        self.run_command(args)
 
 
 def sanitize_mp4_filename(name: str, default: str = "clip.mp4") -> str:
