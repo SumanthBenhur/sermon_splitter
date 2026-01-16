@@ -1,42 +1,51 @@
+import ffmpeg
 from pathlib import Path
 from typing import List, Optional
-import subprocess
 
 
 class Ffmeg:
     def __init__(self, ffmpeg_path: Optional[str] = None) -> None:
-        """
-        Initialize an FFmpeg helper.
-
-        Args:
-            ffmpeg_path: Optional path to the ffmpeg executable.
-                         If not provided, ffmpeg is expected to be available on PATH.
-        """
-        pass
-
-    def run_command(self, args: List[str]) -> subprocess.CompletedProcess:
-        """
-        Execute an ffmpeg command.
-
-        Args:
-            args: Command-line arguments to pass to ffmpeg
-                  (excluding the ffmpeg executable itself).
-
-        Returns:
-            A CompletedProcess containing stdout, stderr, and return code.
-
-        Raises:
-            RuntimeError: If the ffmpeg command fails.
-        """
-        pass
+        self.ffmpeg_path = ffmpeg_path
 
     def get_ffmpeg_path(self) -> str:
-        """
-        Get the resolved path to the ffmpeg executable.
+        """Returns the path to the ffmpeg binary."""
+        return self.ffmpeg_path or "ffmpeg"
 
-        Returns:
-            Absolute path to ffmpeg as a string.
-        """
+    def merge_audio_video(
+        self, video_path: Path, audio_path: Path, output_path: Path
+    ) -> None:
+        if not video_path.exists() or not audio_path.exists():
+            raise FileNotFoundError("Inputs missing.")
+
+        output_path = output_path.with_suffix(".mkv")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            v = ffmpeg.input(str(video_path))
+            a = ffmpeg.input(str(audio_path))
+
+            (
+                ffmpeg.output(
+                    v["v"],
+                    a["a"],
+                    str(output_path),
+                    vcodec="copy",
+                    acodec="aac",
+                    audio_bitrate="192k",
+                    shortest=None,
+                )
+                .overwrite_output()
+                .run(
+                    cmd=self.get_ffmpeg_path(), capture_stdout=True, capture_stderr=True
+                )
+            )
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode() if e.stderr else "Unknown FFmpeg error"
+            raise RuntimeError(f"FFmpeg failed:\n{error_msg}") from e
+
+    # Add this back if you need it for other parts of your code
+    def build_concat_filter(self, inputs: List[Path]) -> str:
+        # implementation...
         pass
 
 
