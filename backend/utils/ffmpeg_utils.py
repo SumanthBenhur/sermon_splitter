@@ -43,10 +43,31 @@ class Ffmeg:
             error_msg = e.stderr.decode() if e.stderr else "Unknown FFmpeg error"
             raise RuntimeError(f"FFmpeg failed:\n{error_msg}") from e
 
-    # Add this back if you need it for other parts of your code
-    def build_concat_filter(self, inputs: List[Path]) -> str:
-        # implementation...
-        pass
+    def convert_to_mp4(self, input_path: Path, output_path: Path) -> None:
+        if not input_path.exists():
+            raise FileNotFoundError("Input file missing.")
+
+        output_path = output_path.with_suffix(".mp4")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            (
+                ffmpeg.input(str(input_path))
+                .output(
+                    str(output_path),
+                    vcodec="libx264",
+                    acodec="aac",
+                    audio_bitrate="192k",
+                    movflags="+faststart",
+                )
+                .overwrite_output()
+                .run(
+                    cmd=self.get_ffmpeg_path(), capture_stdout=True, capture_stderr=True
+                )
+            )
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode() if e.stderr else "Unknown FFmpeg error"
+            raise RuntimeError(f"FFmpeg failed:\n{error_msg}") from e
 
 
 def sanitize_mp4_filename(name: str, default: str = "clip.mp4") -> str:
