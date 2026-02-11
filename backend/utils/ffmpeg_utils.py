@@ -1,9 +1,10 @@
+# this file all about the ffmpeg utils, which is used to merge audio and video, convert video formats, and other video processing tasks. It provides a class `Ffmeg` with methods for these operations, as well as several standalone functions for specific video manipulation tasks. The code uses the `ffmpeg-python` library to interface with the FFmpeg command-line tool.
 import ffmpeg
 from pathlib import Path
 from typing import List, Optional
 
 
-class Ffmeg:
+class Ffmpeg:
     def __init__(self, ffmpeg_path: Optional[str] = None) -> None:
         self.ffmpeg_path = ffmpeg_path
 

@@ -2,11 +2,11 @@
 import pytest
 import ffmpeg
 import config
-from backend.utils.ffmpeg_utils import Ffmeg
+from backend.utils.ffmpeg_utils import Ffmpeg
 
 
 def test_merge_and_convert_to_mp4():
-    ffmpeg_utils = Ffmeg()
+    ffmpeg_utils = Ffmpeg()
     samples_dir = config.VIDEOS_DIR / "samples"
 
     video_path = samples_dir / "video_without_audio.mp4"
