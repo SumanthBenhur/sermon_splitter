@@ -11,8 +11,6 @@ import srt
 
 
 class Transcriber:
-    # def pick_model(self):
-    #     models = ["large-v3","base","medium","small","tiny"]
     def __init__(self, size: str = "small", device: str = "auto"):
         """
         This Function is called while creating the Transcriber
