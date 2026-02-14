@@ -48,7 +48,7 @@ class Transcriber:
             Simply returns the iterable/segments
             Listener.transcribe("inputfile.mp3")
 
-            You get a progress bas while exporting
+            You get a progress bar while exporting
             Listener.transcribe("inputfile.mp3",log = True)
 
             Now Transcription in that language (not translation)
@@ -108,13 +108,3 @@ class Transcriber:
                     Writer.writerow((segment.start, segment.end, segment.text))
         else:
             raise ValueError("filetype parameter only supports '.srt' and '.csv'")
-        # if the filetype is srt
-
-
-if __name__ == "__main__":
-    Buck = Transcriber("tiny", "cuda")
-    Text = Buck.transcribe("experimental/Isaac/sermon.mp3", language="en", log=True)
-    Buck.export_to_file(Text, "C:/Imports/translation3")
-    print("All done")
-    # Text = Buck.transcribe("experimental/Isaac/sermon.mp3", language="en",log=True)
-    # Buck.export_to_csv(Text,"experimental/Isaac/translation")
