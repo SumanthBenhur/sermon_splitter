@@ -13,13 +13,12 @@ import srt
 class Transcriber:
     # def pick_model(self):
     #     models = ["large-v3","base","medium","small","tiny"]
-    def __init__(self, size="small", device="auto"):
+    def __init__(self, size: str = "small", device: str = "auto"):
         """
         This Function is called while creating the Transcriber
 
-        :param self: Description
-        :param size: Description
-        :param device: Description
+        :param size: This Parameter lets choose which model to load e.g. - "base","medium","small","tiny","large-v3"
+        :param device: This parameter lets you choose which device to use ("cpu","cuda")
         """
 
         # print("Loading up the Model")
