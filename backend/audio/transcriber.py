@@ -22,7 +22,7 @@ class Transcriber:
         :param device: Description
         """
 
-        print("Loading up the Model")
+        # print("Loading up the Model")
         self.model = WhisperModel(size, device=device)
 
     def transcribe(
@@ -30,6 +30,8 @@ class Transcriber:
         path: str,
         log: bool = True,
         language: str = None,
+        chunk: int = 10,
+        no_repeat=0,
     ):
         """
         The Function takes the model then transribe the audio using the model and returns a iterable with
@@ -41,78 +43,81 @@ class Transcriber:
         :type log: bool
         :param language: (optional) The Language used by the speaker in the audio example : English = "en"
         :type language: str
-
+        :param chunk: This parameter controls the length of audio transcribed per segment (5 -> 5 seconds per segment)
+        :type chunk: int
+        :param no_repeat: This parameter controls the repetition error (0 is disabled). Use it when changing chunk
+        :type no_repeat: int
         Example:
-            Listener.transcribe("inputfile.mp3") #Simply returns the iterable/segments
-            Listener.transcribe("inputfile.mp3",log = True) #You get a progress bas while exporting
-            Listener.transcribe("inputfile.mp3",log = True, language="en") #Now Transcription in that language (not translation)
+            Simply returns the iterable/segments
+            Listener.transcribe("inputfile.mp3")
+
+            You get a progress bas while exporting
+            Listener.transcribe("inputfile.mp3",log = True)
+
+            Now Transcription in that language (not translation)
+            Listener.transcribe("inputfile.mp3",log = True, language="en")
+
+            Now the segments will be longer (while no_repeat prevents from repetition)
+            Listener.transcribe("inputfile.mp3",chunk =7,no_repeat=3)
         """
         segments, info = self.model.transcribe(
-            path, language=language, log_progress=log
+            path,
+            language=language,
+            log_progress=log,
+            chunk_length=chunk,
+            no_repeat_ngram_size=no_repeat,
         )
 
         return segments
 
-    def export_to_csv(self, segments, OutputName: str):
+    def export_to_file(self, segments, outputname: str, filetype: str = ".srt"):
         """
-        This Functions takes the iterable from the transcribe write it on a csv file
+        This Functions takes the iterable from the transcribe write it on  file (srt or csv)
 
         :param segments: The Iterable file which is returned by the transcription function
-        :param OutputName: The name of the new file along with the path (without the extension)
+        :param outputname: The name of the new file along with the path
 
         Example:
-            Exports a file v1-transcribe.csv in current directory
-            Listener.export_to_csv(segments,"v1-transcribe")
+            Exports a file v1-transcribe.srt in current directory
+            Listener.export_to_file(segments,"v1-transcribe")
 
             Exports a file v1-transcribe.csv in specified directory
-            Listener.export_to_csv(segments,"experimental/v1-transcribe")
+            Listener.export_to_srt(segments,"experimental/v1-transcribe",filetype=".csv")
 
-            Exports a file v1-transcribe.csv using abs path
-            Listener.export_to_csv(segments,"C:/Imports/translation")
-        """
-        csv_path = Path(OutputName).with_suffix(".csv")
-        with csv_path.open("x") as file:
-            Writer = csv.writer(file)
-            for segment in segments:
-                Writer.writerow((segment.start, segment.end, segment.text))
-
-    def export_to_srt(self, segments, name):
-        """
-        This Functions takes the iterable from the transcribe write it on a srt file
-
-        :param segments: The Iterable file which is returned by the transcription function
-        :param OutputName: The name of the new file along with the path
-
-        Example:
-            Exports a file v1-transcribe.csv in current directory
-            Listener.export_to_srt(segments,"v1-transcribe")
-
-            Exports a file v1-transcribe.csv in specified directory
-            Listener.export_to_srt(segments,"experimental/v1-transcribe")
-
-            Exports a file v1-transcribe.csv using abs path
+            Exports a file v1-transcribe.srt using abs path
             Listener.export_to_srt(segments,"C:/Imports/translation")
 
         """
 
-        subs = []
-        srt_path = Path(name).with_suffix(".srt")
-        for segment in segments:
-            subs.append(
-                srt.Subtitle(
-                    index=segment.id,
-                    start=timedelta(seconds=segment.start),
-                    end=timedelta(seconds=segment.end),
-                    content=segment.text,
+        if filetype == ".srt":
+            srt_path = Path(outputname).with_suffix(filetype)
+            subs = []
+            for segment in segments:
+                subs.append(
+                    srt.Subtitle(
+                        index=segment.id,
+                        start=timedelta(seconds=segment.start),
+                        end=timedelta(seconds=segment.end),
+                        content=segment.text,
+                    )
                 )
-            )
-        srt_content = srt.compose(subs)
-        srt_path.write_text(srt_content, encoding="utf-8")
+            srt_content = srt.compose(subs)
+            srt_path.write_text(srt_content, encoding="utf-8")
+        elif filetype == ".csv":
+            csv_path = Path(outputname).with_suffix(filetype)
+            with csv_path.open("x") as file:
+                Writer = csv.writer(file)
+                for segment in segments:
+                    Writer.writerow((segment.start, segment.end, segment.text))
+        else:
+            raise ValueError("filetype parameter only supports '.srt' and '.csv'")
+        # if the filetype is srt
 
 
 if __name__ == "__main__":
     Buck = Transcriber("tiny", "cuda")
     Text = Buck.transcribe("experimental/Isaac/sermon.mp3", language="en", log=True)
-    Buck.export_to_srt(Text, "C:/Imports/translation")
+    Buck.export_to_file(Text, "C:/Imports/translation3")
+    print("All done")
     # Text = Buck.transcribe("experimental/Isaac/sermon.mp3", language="en",log=True)
     # Buck.export_to_csv(Text,"experimental/Isaac/translation")
