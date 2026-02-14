@@ -25,10 +25,11 @@ class Transcriber:
     def transcribe(
         self,
         path: str,
-        log: bool = True,
+        log_progress: bool = True,
         language: str = None,
-        chunk: int = 10,
-        no_repeat=0,
+        chunk_length: int = 10,
+        no_repeat: int = 0,
+        initial_prompt: str = None,
     ):
         """
         The Function takes the model then transribe the audio using the model and returns a iterable with
@@ -60,9 +61,10 @@ class Transcriber:
         segments, info = self.model.transcribe(
             path,
             language=language,
-            log_progress=log,
-            chunk_length=chunk,
+            log_progress=log_progress,
+            chunk_length=chunk_length,
             no_repeat_ngram_size=no_repeat,
+            initial_prompt=initial_prompt,
         )
 
         return segments

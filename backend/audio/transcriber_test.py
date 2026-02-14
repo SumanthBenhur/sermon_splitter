@@ -32,7 +32,12 @@ def test_transcribe(MockWhisperModel, mock_segments):
 
     transcriber = Transcriber()
     result = transcriber.transcribe(
-        "dummy_audio.mp3", language="en", log=False, chunk=20, no_repeat=2
+        "dummy_audio.mp3",
+        language="en",
+        log_progress=False,
+        chunk_length=20,
+        no_repeat=2,
+        initial_prompt="This is a Prompt",
     )
 
     mock_model_instance.transcribe.assert_called_once_with(
@@ -41,6 +46,7 @@ def test_transcribe(MockWhisperModel, mock_segments):
         log_progress=False,
         chunk_length=20,
         no_repeat_ngram_size=2,
+        initial_prompt="This is a Prompt",
     )
 
     assert result == mock_segments
