@@ -67,13 +67,15 @@ class Transcriber:
 
         return segments
 
-    def export_to_file(self, segments, outputname: str, filetype: str = ".srt"):
+    def export_to_file(
+        self, segments, outputname: str, filetype: str = ".srt", overwrite: bool = False
+    ):
         """
         This Functions takes the iterable from the transcribe write it on  file (srt or csv)
 
         :param segments: The Iterable file which is returned by the transcription function
         :param outputname: The name of the new file along with the path
-
+        :param overwrite: This Parameter lets you overwrite files
         Example:
             Exports a file v1-transcribe.srt in current directory
             Listener.export_to_file(segments,"v1-transcribe")
@@ -85,9 +87,10 @@ class Transcriber:
             Listener.export_to_srt(segments,"C:/Imports/translation")
 
         """
-
+        path = Path(outputname).with_suffix(filetype)
+        if path.exists() and not overwrite:
+            raise FileExistsError(f"{path.name} already exists")
         if filetype == ".srt":
-            srt_path = Path(outputname).with_suffix(filetype)
             subs = []
             for segment in segments:
                 subs.append(
@@ -99,12 +102,11 @@ class Transcriber:
                     )
                 )
             srt_content = srt.compose(subs)
-            srt_path.write_text(srt_content, encoding="utf-8")
+            path.write_text(srt_content, encoding="utf-8")
         elif filetype == ".csv":
-            csv_path = Path(outputname).with_suffix(filetype)
-            with csv_path.open("x") as file:
-                Writer = csv.writer(file)
+            with path.open("w") as file:
+                writer = csv.writer(file)
                 for segment in segments:
-                    Writer.writerow((segment.start, segment.end, segment.text))
+                    writer.writerow((segment.start, segment.end, segment.text))
         else:
             raise ValueError("filetype parameter only supports '.srt' and '.csv'")

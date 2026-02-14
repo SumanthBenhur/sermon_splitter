@@ -86,3 +86,15 @@ def test_invalid_filetype(MockWhisperModel, mock_segments):
         ValueError, match="filetype parameter only supports '.srt' and '.csv'"
     ):
         transcriber.export_to_file(mock_segments, "dummy_output", filetype=".xyz")
+
+
+@patch("transcriber.WhisperModel")
+def test_overwrite(MockWhisperModel, mock_segments, tmp_path):
+    transcriber = Transcriber()
+    Name = "test_file"
+    path = MagicMock()
+    path.name = f"{Name}.srt"
+    temp_file = tmp_path / f"{Name}.srt"
+    temp_file.touch()
+    with pytest.raises(FileExistsError, match=f"{path.name} already exists"):
+        transcriber.export_to_file(mock_segments, temp_file)
