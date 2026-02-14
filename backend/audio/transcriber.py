@@ -6,21 +6,26 @@ import srt
 
 """This Module deals with transcribing audio files and writing it to a srt file (or a csv file)
 
-    Note -: In the Example Listener var name of the Object Instance of Transcriber class (Listener = Transriber("tiny"))
+    Note -: In the Example Listener var name of the Object Instance of Transcriber class (Listener = Transcriber("tiny"))
 """
 
 
 class Transcriber:
-    def __init__(self, size: str = "small", device: str = "auto"):
+    def __init__(
+        self, size: str = "small", device: str = "auto", compute_type: str = "auto"
+    ):
         """
         This Function is called while creating the Transcriber
 
         :param size: This Parameter lets choose which model to load e.g. - "base","medium","small","tiny","large-v3"
         :param device: This parameter lets you choose which device to use ("cpu","cuda")
+        :type device: str
+        :param compute_type: This Parameter allows you to change compute_size (basically) (int8 for CPU, float16 for GPU)
+        :type compute_type: str
         """
 
         # print("Loading up the Model")
-        self.model = WhisperModel(size, device=device)
+        self.model = WhisperModel(size, device=device, compute_type=compute_type)
 
     def transcribe(
         self,
@@ -30,6 +35,7 @@ class Transcriber:
         chunk_length: int = 10,
         no_repeat: int = 0,
         initial_prompt: str = None,
+        vad_filter: bool = True,
     ):
         """
         The Function takes the model then transribe the audio using the model and returns a iterable with
@@ -37,12 +43,12 @@ class Transcriber:
 
         :param path: The Input Path of the audio file
         :type path: str
-        :param log: (optional) Toggle logging while transcribing (It will appear will exporting it)
-        :type log: bool
+        :param log_progress: (optional) Toggle logging while transcribing (It will appear will exporting it)
+        :type log_progress: bool
         :param language: (optional) The Language used by the speaker in the audio example : English = "en"
         :type language: str
-        :param chunk: This parameter controls the length of audio transcribed per segment (5 -> 5 seconds per segment)
-        :type chunk: int
+        :param chunk_length: This parameter controls the length of audio transcribed per segment (5 -> 5 seconds per segment)
+        :type chunk_length: int
         :param no_repeat: This parameter controls the repetition error (0 is disabled). Use it when changing chunk
         :type no_repeat: int
         Example:
@@ -50,13 +56,13 @@ class Transcriber:
             Listener.transcribe("inputfile.mp3")
 
             You get a progress bar while exporting
-            Listener.transcribe("inputfile.mp3",log = True)
+            Listener.transcribe("inputfile.mp3",log_progress = True)
 
             Now Transcription in that language (not translation)
-            Listener.transcribe("inputfile.mp3",log = True, language="en")
+            Listener.transcribe("inputfile.mp3",log_progress = True, language="en")
 
             Now the segments will be longer (while no_repeat prevents from repetition)
-            Listener.transcribe("inputfile.mp3",chunk =7,no_repeat=3)
+            Listener.transcribe("inputfile.mp3",chunk_length =7,no_repeat=3)
         """
         segments, info = self.model.transcribe(
             path,
@@ -65,6 +71,7 @@ class Transcriber:
             chunk_length=chunk_length,
             no_repeat_ngram_size=no_repeat,
             initial_prompt=initial_prompt,
+            vad_filter=vad_filter,
         )
 
         return segments

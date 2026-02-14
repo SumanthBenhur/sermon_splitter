@@ -20,7 +20,7 @@ def mock_segments():
 @patch("transcriber.WhisperModel")
 def test_init(MockWhisperModel):
     transcriber = Transcriber(size="base", device="cpu")
-    MockWhisperModel.assert_called_once_with("base", device="cpu")
+    MockWhisperModel.assert_called_once_with("base", device="cpu", compute_type="auto")
     assert transcriber.model == MockWhisperModel.return_value
 
 
@@ -37,7 +37,6 @@ def test_transcribe(MockWhisperModel, mock_segments):
         log_progress=False,
         chunk_length=20,
         no_repeat=2,
-        initial_prompt="This is a Prompt",
     )
 
     mock_model_instance.transcribe.assert_called_once_with(
@@ -46,7 +45,8 @@ def test_transcribe(MockWhisperModel, mock_segments):
         log_progress=False,
         chunk_length=20,
         no_repeat_ngram_size=2,
-        initial_prompt="This is a Prompt",
+        initial_prompt=None,
+        vad_filter=True,
     )
 
     assert result == mock_segments
@@ -92,6 +92,12 @@ def test_invalid_filetype(MockWhisperModel, mock_segments):
         ValueError, match="filetype parameter only supports '.srt' and '.csv'"
     ):
         transcriber.export_to_file(mock_segments, "dummy_output", filetype=".xyz")
+
+
+@patch("transcriber.WhisperModel")
+def test_init_with_compute_type(MockWhisperModel):
+    Transcriber(size="base", device="cpu", compute_type="int8")
+    MockWhisperModel.assert_called_with("base", device="cpu", compute_type="int8")
 
 
 @patch("transcriber.WhisperModel")
