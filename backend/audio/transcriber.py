@@ -36,6 +36,7 @@ class Transcriber:
         no_repeat: int = 0,
         initial_prompt: str = None,
         vad_filter: bool = True,
+        word_timestamps: bool = False,
     ):
         """
         The Function takes the model then transribe the audio using the model and returns a iterable with
@@ -45,12 +46,14 @@ class Transcriber:
         :type path: str
         :param log_progress: (optional) Toggle logging while transcribing (It will appear will exporting it)
         :type log_progress: bool
-        :param language: (optional) The Language used by the speaker in the audio example : English = "en"
+        :param language: (optional) The Language used by the speaker in the audio example - English = "en"
         :type language: str
         :param chunk_length: This parameter controls the length of audio transcribed per segment (5 -> 5 seconds per segment)
         :type chunk_length: int
         :param no_repeat: This parameter controls the repetition error (0 is disabled). Use it when changing chunk
         :type no_repeat: int
+        :param word_timestamps: This parameter lets you get timestamps to word
+        :type word_timestamps: bool
         Example:
             Simply returns the iterable/segments
             Listener.transcribe("inputfile.mp3")
@@ -63,6 +66,10 @@ class Transcriber:
 
             Now the segments will be longer (while no_repeat prevents from repetition)
             Listener.transcribe("inputfile.mp3",chunk_length =7,no_repeat=3)
+
+            Now the segments will be per word long
+            Listener.transcribe("inputfile.mp3",word_timestamps=True)
+
         """
         segments, info = self.model.transcribe(
             path,
@@ -72,6 +79,7 @@ class Transcriber:
             no_repeat_ngram_size=no_repeat,
             initial_prompt=initial_prompt,
             vad_filter=vad_filter,
+            word_timestamps=word_timestamps,
         )
 
         return segments

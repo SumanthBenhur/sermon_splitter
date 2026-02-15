@@ -37,6 +37,7 @@ def test_transcribe(MockWhisperModel, mock_segments):
         log_progress=False,
         chunk_length=20,
         no_repeat=2,
+        word_timestamps=True,
     )
 
     mock_model_instance.transcribe.assert_called_once_with(
@@ -47,6 +48,7 @@ def test_transcribe(MockWhisperModel, mock_segments):
         no_repeat_ngram_size=2,
         initial_prompt=None,
         vad_filter=True,
+        word_timestamps=True,
     )
 
     assert result == mock_segments
