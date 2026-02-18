@@ -29,3 +29,6 @@ dev = [
 
 [tool.ruff]
 exclude = ["deprecated"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
