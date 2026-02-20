@@ -4,4 +4,3 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 VIDEOS_DIR = PROJECT_ROOT / "videos"
-SAMPLES_DIR = PROJECT_ROOT / "samples"

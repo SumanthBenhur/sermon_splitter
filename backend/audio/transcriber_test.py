@@ -6,7 +6,7 @@ import sys
 
 # Add the project root to sys.path to allow importing config
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from config import SAMPLES_DIR
+from config import VIDEOS_DIR
 
 
 @pytest.fixture
@@ -123,9 +123,9 @@ def test_overwrite(MockWhisperModel, mock_segments, tmp_path):
 @pytest.mark.real
 def test_run():
     audiopath = (
-        SAMPLES_DIR / "audio/test_transcribe_audio.mp3"
+        VIDEOS_DIR / "samples/test_transcribe_audio.mp3"
     )  # "samples/audio/test_transcribe_audio.mp3"
-    outpath = SAMPLES_DIR / "audio/output"  # "samples/audio/output"
+    outpath = VIDEOS_DIR / "samples/output"  # "samples/audio/output"
     transcriber = Transcriber("small")
     segments = transcriber.transcribe(audiopath, language="en", log_progress=False)
     transcriber.export_to_file(segments, outpath, overwrite=True)
