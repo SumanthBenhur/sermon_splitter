@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from transcriber import Transcriber
+from pathlib import Path
 
 
 @pytest.fixture
@@ -112,3 +113,20 @@ def test_overwrite(MockWhisperModel, mock_segments, tmp_path):
     temp_file.touch()
     with pytest.raises(FileExistsError, match=f"{path.name} already exists"):
         transcriber.export_to_file(mock_segments, temp_file)
+
+
+@pytest.mark.real
+def test_run():
+    audiopath = "samples/audio/test_transcribe_audio.mp3"  # config.SAMPLES_DIR / "audio/test_transcribe_audio.mp3"
+    outpath = "samples/audio/output"  # config.SAMPLES_DIR / "audio/output"
+    transcriber = Transcriber("small")
+    segments = transcriber.transcribe(audiopath, language="en", log_progress=False)
+    transcriber.export_to_file(segments, outpath, overwrite=True)
+    Output = Path(outpath).with_suffix(".srt")
+    assert Output.exists()
+    with Output.open("r") as file:
+        content = file.read()
+        assert "1" in content
+        assert "Hey there, this is a quick and silly video" in content
+        assert "the process of transcription on YouTube" in content
+        assert "Good luck" in content
