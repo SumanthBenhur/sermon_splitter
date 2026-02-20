@@ -1,7 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from transcriber import Transcriber
-from pathlib import Path
+import os
+import sys
+
+# Add the project root to sys.path to allow importing config
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+from config import SAMPLES_DIR
 
 
 @pytest.fixture
@@ -117,12 +122,14 @@ def test_overwrite(MockWhisperModel, mock_segments, tmp_path):
 
 @pytest.mark.real
 def test_run():
-    audiopath = "samples/audio/test_transcribe_audio.mp3"  # config.SAMPLES_DIR / "audio/test_transcribe_audio.mp3"
-    outpath = "samples/audio/output"  # config.SAMPLES_DIR / "audio/output"
+    audiopath = (
+        SAMPLES_DIR / "audio/test_transcribe_audio.mp3"
+    )  # "samples/audio/test_transcribe_audio.mp3"
+    outpath = SAMPLES_DIR / "audio/output"  # "samples/audio/output"
     transcriber = Transcriber("small")
     segments = transcriber.transcribe(audiopath, language="en", log_progress=False)
     transcriber.export_to_file(segments, outpath, overwrite=True)
-    Output = Path(outpath).with_suffix(".srt")
+    Output = outpath.with_suffix(".srt")
     assert Output.exists()
     with Output.open("r") as file:
         content = file.read()
