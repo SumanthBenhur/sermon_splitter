@@ -19,6 +19,7 @@ dependencies = [
     "pytubefix>=10.3.4",
     "imageio-ffmpeg>=0.6.0",
     "ffmpeg-python>=0.2.0",
+    "faster-whisper>=1.2.1",
     "pytest>=9.0.2",
 ]
 
