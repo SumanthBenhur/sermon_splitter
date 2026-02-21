@@ -3,6 +3,8 @@ import subprocess
 from pathlib import Path
 import cv2
 import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 import srt as srtlib
 from datetime import timedelta
 from pytubefix import YouTube
@@ -18,7 +20,7 @@ import shutil
 # ---------- Config (tweakable) ----------
 OUT_W, OUT_H = 1080, 1920
 SMOOTH = 0.98
-JITTER_THRESHOLD = 10  # jitter threshold in pixels
+JITTER_THRESHOLD = 1.6  # jitter threshold in pixels
 
 
 def download_video(url: str) -> Path:
@@ -129,19 +131,18 @@ class VideoProcessor:
     def create_face_tracked_vertical_video(self, input_mp4: str, output_mp4: str,
                                            out_w: int = OUT_W, out_h: int = OUT_H,
                                            smooth: float = SMOOTH):
-        """Center the largest face; pipe frames to ffmpeg; copy audio from original."""
-        def clamp(v, lo, hi): return max(lo, min(hi, v))
-
-        cap = cv2.VideoCapture(input_mp4)
-        if not cap.isOpened():
-            raise RuntimeError(f"Cannot open video: {input_mp4}")
-
-        src_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        src_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-        if fps < 1:
-            fps = 30.0
-
+        #Loading Up the Model
+        base_options = python.BaseOptions(model_asset_path='deprecated/blaze_face_short_range.tflite')
+        visionrunningmode= vision.RunningMode
+        options = vision.FaceDetectorOptions(base_options=base_options,running_mode=visionrunningmode.VIDEO)
+        detector = vision.FaceDetector.create_from_options(options)
+        
+        #Opening the input_mp4 with cv2
+        video  = cv2.VideoCapture(input_mp4)
+        
+        #Loading a pipe to output to output.mp4
+        fps =  video.get(cv2.CAP_PROP_FPS)
+        if fps < 1: fps = 30.0
         ff_cmd = [
             "-y",
             "-f", "rawvideo",
@@ -159,65 +160,64 @@ class VideoProcessor:
             output_mp4
         ]
         proc = subprocess.Popen([self.ffmpeg.ffmpeg_path, *ff_cmd], stdin=subprocess.PIPE)
-
-        cx_s, cy_s = src_w / 2, src_h / 2
-        with mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.4) as mp_fd:
-            while True:
-                ok, frame = cap.read()
-                if not ok:
-                    break
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                res = mp_fd.process(rgb)
-
-                if res.detections:
-                    best = None
-                    for d in res.detections:
-                        bb = d.location_data.relative_bounding_box
-                        x, y, w, h = bb.xmin, bb.ymin, bb.width, bb.height
-                        area = w * h
-                        if best is None or area > best[0]:
-                            best = (area, x, y, w, h)
-                    _, x, y, w, h = best
-                    cx = (x + w / 2) * src_w
-                    cy = (y + h / 2) * src_h
+        
+        frame_index = 0
+        aspect_ratio = out_w / out_h
+        smooth_x = None
+        with detector:
+            if not video.isOpened:
+                print("Couldn't Open the video File")
+            while video.isOpened:
+                # Reading the video and converting the color format to 
+                ret, frame = video.read()
+                if not ret: break
+                h, w, _ = frame.shape
+                crop_w = int(h * (aspect_ratio))
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB,data=rgb_frame)
+                timestamp = int((frame_index) * 1000/fps)
+                frame_index += 1
+                
+                #Detecting Faces
+                detection_result = detector.detect_for_video(mp_image, timestamp)
+                #Cropping the Video
+                center_x = w // 2
+                if detection_result.detections:
+                    #Get the Tracked Face's Bounding Box
+                    bbox = detection_result.detections[0].bounding_box
+                    # Get the Horizontal Middle/Center of the Bounding Box
+                    center_x = int(bbox.origin_x + (bbox.width /2))
                     
-                    # Only update if movement exceeds threshold
-                    if abs(cx - cx_s) > JITTER_THRESHOLD:
-                        cx_s = smooth * cx_s + (1 - smooth) * cx
-                    
-                    if abs(cy - cy_s) > JITTER_THRESHOLD:
-                        cy_s = smooth * cy_s + (1 - smooth) * cy
-                else:
-                    cx_s = smooth * cx_s + (1 - smooth) * (src_w / 2)
-                    cy_s = smooth * cy_s + (1 - smooth) * (src_h / 2)
-
-                scale = max(out_h / src_h, out_w / src_w)
-                new_w = max(out_w, int(round(src_w * scale)))
-                new_h = max(out_h, int(round(src_h * scale)))
-                frame_resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
-
-                cx_scaled = cx_s * scale
-                cy_scaled = cy_s * scale
-                x0 = int(round(cx_scaled - out_w / 2))
-                y0 = int(round(cy_scaled - out_h / 2))
-                x0 = clamp(x0, 0, new_w - out_w)
-                y0 = clamp(y0, 0, new_h - out_h)
-                x1 = x0 + out_w
-                y1 = y0 + out_h
-                crop = frame_resized[y0:y1, x0:x1]
-                if crop is None or crop.shape[1] != out_w or crop.shape[0] != out_h:
-                    crop = cv2.resize(frame_resized, (out_w, out_h), interpolation=cv2.INTER_CUBIC)
-
+                    #Smoothing Out the Video
+                    if smooth_x is None:
+                        smooth_x = float(center_x)
+                    else:
+                        if abs(center_x -smooth_x) > JITTER_THRESHOLD:
+                            smooth_x = smooth_x + (center_x - smooth_x)*smooth
+                #Calculating crop Boundaries
+                smooth_x = int(smooth_x)
+                x_start = max(0, min(smooth_x - (crop_w //2),w- crop_w))
+                x_end = x_start + crop_w
+                
+                cropped_frame = frame[0:h, x_start:x_end]
+                cropped_frame = cv2.resize(cropped_frame,(out_w,out_h))
+                
+                # Uncomment below to see preview of the Face Tracking
+                # cv2.imshow('Vertical Face Follow',cropped_frame)
+                # if cv2.waitKey(1) & 0xFF == ord('q'): break
+                
                 try:
-                    proc.stdin.write(crop.tobytes())
+                    proc.stdin.write(cropped_frame.tobytes())
                 except BrokenPipeError:
                     break
+                
 
-        cap.release()
+        video.release()
+        cv2.destroyAllWindows()
         if proc.stdin:
             proc.stdin.close()
         proc.wait()
-
+        
     def extract_audio_to_wav(self, input_mp4: Path, wav_path: Path, sample_rate=16000):
         """Extracts audio from a video file to a mono 16kHz WAV file."""
         args = [
@@ -246,6 +246,7 @@ class VideoProcessor:
             "-movflags", "+faststart",
             str(out_path)
         ]
+
         self.ffmpeg.run_command(args)
 
         # Cleanup: Remove the temporary SRT file from CWD

@@ -1,10 +1,76 @@
+# this file all about the ffmpeg utils, which is used to merge audio and video, convert video formats, and other video processing tasks. It provides a class `Ffmeg` with methods for these operations, as well as several standalone functions for specific video manipulation tasks. The code uses the `ffmpeg-python` library to interface with the FFmpeg command-line tool.
+import ffmpeg
 from pathlib import Path
 from typing import List, Optional
-import subprocess
 
 
-class Ffmeg:
-    def trim_file(video, starttime, endtime, audio=None):
+class Ffmpeg:
+    def __init__(self, ffmpeg_path: Optional[str] = None) -> None:
+        self.ffmpeg_path = ffmpeg_path
+
+    def get_ffmpeg_path(self) -> str:
+        """Returns the path to the ffmpeg binary."""
+        return self.ffmpeg_path or "ffmpeg"
+
+    def merge_audio_video(
+        self, video_path: Path, audio_path: Path, output_path: Path
+    ) -> None:
+        if not video_path.exists() or not audio_path.exists():
+            raise FileNotFoundError("Inputs missing.")
+
+        output_path = output_path.with_suffix(".mkv")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            v = ffmpeg.input(str(video_path))
+            a = ffmpeg.input(str(audio_path))
+
+            (
+                ffmpeg.output(
+                    v["v"],
+                    a["a"],
+                    str(output_path),
+                    vcodec="copy",
+                    acodec="aac",
+                    audio_bitrate="192k",
+                    shortest=None,
+                )
+                .overwrite_output()
+                .run(
+                    cmd=self.get_ffmpeg_path(), capture_stdout=True, capture_stderr=True
+                )
+            )
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode() if e.stderr else "Unknown FFmpeg error"
+            raise RuntimeError(f"FFmpeg failed:\n{error_msg}") from e
+
+    def convert_to_mp4(self, input_path: Path, output_path: Path) -> None:
+        if not input_path.exists():
+            raise FileNotFoundError("Input file missing.")
+
+        output_path = output_path.with_suffix(".mp4")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            (
+                ffmpeg.input(str(input_path))
+                .output(
+                    str(output_path),
+                    vcodec="libx264",
+                    acodec="aac",
+                    audio_bitrate="192k",
+                    movflags="+faststart",
+                )
+                .overwrite_output()
+                .run(
+                    cmd=self.get_ffmpeg_path(), capture_stdout=True, capture_stderr=True
+                )
+            )
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode() if e.stderr else "Unknown FFmpeg error"
+            raise RuntimeError(f"FFmpeg failed:\n{error_msg}") from e
+
+    def trim_file(video: Path, starttime: str, endtime: str, audio: Path = None):
         """
         This Function trims the video and return audio and video (as a tuple)
 
@@ -13,48 +79,16 @@ class Ffmeg:
         :param endtime: The Trimming Stop Time
         :param audio: (Optional) audio Component of the file
         """
+
+        ffaudio = ffmpeg.input(audio)
+        ffvideo = ffmpeg.input(video)
         if audio:
-            trimmed_video = video.filter("trim", start=starttime, end=endtime)
-            trimmed_audio = audio.filter("atrim", start=starttime, end=endtime)
+            trimmed_video = ffvideo.filter("trim", start=starttime, end=endtime)
+            trimmed_audio = ffaudio.filter("atrim", start=starttime, end=endtime)
         else:
-            trimmed_video = video.video.filter("trim", start=starttime, end=endtime)
-            trimmed_audio = video.audio.filter("atrim", start=starttime, end=endtime)
+            trimmed_video = ffvideo.video.filter("trim", start=starttime, end=endtime)
+            trimmed_audio = ffvideo.audio.filter("atrim", start=starttime, end=endtime)
         return trimmed_audio, trimmed_video
-
-    def __init__(self, ffmpeg_path: Optional[str] = None) -> None:
-        """
-        Initialize an FFmpeg helper.
-
-        Args:
-            ffmpeg_path: Optional path to the ffmpeg executable.
-                         If not provided, ffmpeg is expected to be available on PATH.
-        """
-        pass
-
-    def run_command(self, args: List[str]) -> subprocess.CompletedProcess:
-        """
-        Execute an ffmpeg command.
-
-        Args:
-            args: Command-line arguments to pass to ffmpeg
-                  (excluding the ffmpeg executable itself).
-
-        Returns:
-            A CompletedProcess containing stdout, stderr, and return code.
-
-        Raises:
-            RuntimeError: If the ffmpeg command fails.
-        """
-        pass
-
-    def get_ffmpeg_path(self) -> str:
-        """
-        Get the resolved path to the ffmpeg executable.
-
-        Returns:
-            Absolute path to ffmpeg as a string.
-        """
-        pass
 
 
 def sanitize_mp4_filename(name: str, default: str = "clip.mp4") -> str:
