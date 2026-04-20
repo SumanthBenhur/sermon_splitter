@@ -1,0 +1,25 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: SocialCaption,Arial Black,54,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,3,12,0,2,80,80,150,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:03.68,SocialCaption,,0,0,0,,IS THE SAVIOR WHO PAID\NOUR SINS ON THE CROSS,
+Dialogue: 0,0:00:03.73,0:00:06.93,SocialCaption,,0,0,0,,THAT IS THE PURPOSE HE
+Dialogue: 0,0:00:06.98,0:00:10.17,SocialCaption,,0,0,0,,FOR, TO RISE FROM THE
+Dialogue: 0,0:00:10.22,0:00:14.54,SocialCaption,,0,0,0,,, TO HAVE DOMINION OVER\N,
+Dialogue: 0,0:00:14.59,0:00:17.16,SocialCaption,,0,0,0,,THAT WE COULD CALL
+Dialogue: 0,0:00:17.21,0:00:20.90,SocialCaption,,0,0,0,,HIS NAME AND BE SAVED, YES.
+Dialogue: 0,0:00:20.95,0:00:24.27,SocialCaption,,0,0,0,,IS ALSO A TEACHER. AND A
+Dialogue: 0,0:00:24.32,0:00:27.88,SocialCaption,,0,0,0,,TEACHER KNOWS WHEN TO GO
+Dialogue: 0,0:00:27.93,0:00:31.38,SocialCaption,,0,0,0,,. MAYBE HE IS GOING SLOW
+Dialogue: 0,0:00:31.43,0:00:34.38,SocialCaption,,0,0,0,,HE WANTS TO SHOW
+Dialogue: 0,0:00:34.43,0:00:37.38,SocialCaption,,0,0,0,,SOMETHING. I HIRED A
+Dialogue: 0,0:00:37.43,0:00:39.92,SocialCaption,,0,0,0,,GUY TO TEACH ME GUITAR YEARS\N.

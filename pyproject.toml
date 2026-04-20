@@ -9,6 +9,7 @@ dependencies = [
     "datasets>=4.4.1",
     "librosa>=0.11.0",
     "mediapipe>=0.10.14",
+    "python-dotenv>=1.1.1",
     "opencv-python>=4.12.0.88",
     "soundfile>=0.13.1",
     "srt>=3.5.3",
@@ -19,6 +20,7 @@ dependencies = [
     "pytubefix>=10.3.4",
     "imageio-ffmpeg>=0.6.0",
     "ffmpeg-python>=0.2.0",
+    "indic-transliteration>=2.3.75",
     "pytest>=9.0.2",
 ]
 

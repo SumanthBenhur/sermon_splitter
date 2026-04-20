@@ -57,13 +57,14 @@ This will automatically run checks (like `rules` and `ruff`) whenever you try to
 
 ## Usage
 
-### Deprecated Functionality
-
-> **Note:** The previous Streamlit app and core script have been moved to the `deprecated/` directory and will eventually be removed.
-
-If you still need to run the old application, you can execute it from the project root:
+Run the refactored app from the project root:
 
 **Web Application:**
 ```bash
-streamlit run deprecated/app.py
+streamlit run app.py
+```
+
+**CLI Example:**
+```bash
+python main.py
 ```
