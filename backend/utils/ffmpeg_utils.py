@@ -70,6 +70,26 @@ class Ffmpeg:
             error_msg = e.stderr.decode() if e.stderr else "Unknown FFmpeg error"
             raise RuntimeError(f"FFmpeg failed:\n{error_msg}") from e
 
+    def trim_file(video: Path, starttime: str, endtime: str, audio: Path = None):
+        """
+        This Function trims the video and return audio and video (as a tuple)
+
+        :param video: The Main File or video Component of the file
+        :param starttime: The Trimming Start Time
+        :param endtime: The Trimming Stop Time
+        :param audio: (Optional) audio Component of the file
+        """
+
+        ffaudio = ffmpeg.input(audio)
+        ffvideo = ffmpeg.input(video)
+        if audio:
+            trimmed_video = ffvideo.filter("trim", start=starttime, end=endtime)
+            trimmed_audio = ffaudio.filter("atrim", start=starttime, end=endtime)
+        else:
+            trimmed_video = ffvideo.video.filter("trim", start=starttime, end=endtime)
+            trimmed_audio = ffvideo.audio.filter("atrim", start=starttime, end=endtime)
+        return trimmed_audio, trimmed_video
+
 
 def sanitize_mp4_filename(name: str, default: str = "clip.mp4") -> str:
     """
@@ -129,7 +149,7 @@ def extract_audio_to_wav(
     """
     Extract audio from a video file and save it as a WAV file.
 
-    Audio is converted to mono and resampled to the specified rate.
+    audio is converted to mono and resampled to the specified rate.
 
     Args:
         input_mp4: Source video file.
