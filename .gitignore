@@ -11,3 +11,11 @@ wheels/
 
 # Environment variables
 .env
+
+# Generated caches and outputs
+ai_cache/
+temp/
+
+# YouTube downloads and their artifacts
+videos/youtube_downloads/artifacts/
+videos/youtube_downloads/*.mp4
