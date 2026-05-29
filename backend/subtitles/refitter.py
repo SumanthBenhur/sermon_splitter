@@ -12,6 +12,7 @@ def refit_srt(
     max_lines: int = 2,
     min_duration: float = 1.0,
     safety_gap: float = 0.05,
+    max_words: int = 5,
 ) -> None:
     """
     Re-wrap and split SRT entries so each subtitle:
@@ -88,6 +89,31 @@ def refit_srt(
     # ---- load
     src = in_srt_path.read_text(encoding="utf-8", errors="ignore")
     items = list(srtlib.parse(src))
+
+    if items and all(
+        len(norm_spaces(it.content).split()) <= max_words
+        and seconds(it.end - it.start) <= max_duration
+        and it.end > it.start
+        for it in items
+        if norm_spaces(it.content)
+    ):
+        preserved_items = []
+        for idx, it in enumerate(items, 1):
+            words = norm_spaces(it.content).split()
+            wrapped_lines = greedy_wrap(words, max_chars)
+            content = "\n".join(wrapped_lines) if len(wrapped_lines) <= max_lines else " ".join(words)
+            preserved_items.append(
+                srtlib.Subtitle(
+                    index=idx,
+                    start=it.start,
+                    end=it.end,
+                    content=content,
+                )
+            )
+
+        out_srt_path.write_text(srtlib.compose(preserved_items), encoding="utf-8")
+        print(f"[OK] Preserved word-timed SRT -> {out_srt_path}  (max_words={max_words})")
+        return
 
     new_items = []
     idx = 1
