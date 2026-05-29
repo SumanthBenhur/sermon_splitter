@@ -1,7 +1,12 @@
+import os
 from pathlib import Path
 
-from backend.audio.hindi_to_hinglish import convert_srt_to_hinglish
-from backend.audio.transcriber import Transcriber
+from backend.audio.script_detection import (
+    get_srt_script_stats,
+    is_srt_mostly_roman,
+    srt_contains_devanagari,
+)
+from backend.audio.transcriber import Transcriber, ensure_project_storage_dirs
 from backend.subtitles.ass_styler import convert_srt_to_styled_ass
 from backend.subtitles.burner import burn_subtitles_into_video
 from backend.subtitles.refitter import refit_srt
@@ -22,6 +27,7 @@ class SermonPipeline:
         self.ffmpeg_manager = FfmpegManager()
         self.transcriber = Transcriber(self.ffmpeg_manager)
         self.video_utils = VideoUtils()
+        self.project_temp_dir = ensure_project_storage_dirs()["temp"]
 
     def run(self, num_clips, clips_data, output_filename):
         """The main workflow for processing sermon clips."""
@@ -57,24 +63,51 @@ class SermonPipeline:
         final_clip = vert_out
         print(f"Vertical saved: {final_clip}")
 
-        print("\nAdding HINDI subtitles (Whisper) and burning them in...")
-        srt_out = final_clip.with_suffix(".srt")
-        ass_out = self.artifacts_dir / "temp_subtitles.ass"
+        print("\nAdding Roman Hinglish subtitles and burning them in...")
+        subtitle_base = final_clip.stem
+        srt_out = self.project_temp_dir / f"{subtitle_base}.srt"
+        ass_out = self.project_temp_dir / f"{subtitle_base}.ass"
         subbed_out = final_clip.with_name(final_clip.stem + "_subbed.mp4")
         self.transcriber.transcribe_video_with_whisper(final_clip, srt_out)
 
         print("[STEP] Refitting subtitles for better readability...")
-        refit_srt_out = self.artifacts_dir / "temp_subtitles.srt"
+        refit_srt_out = self.project_temp_dir / f"{subtitle_base}_refit.srt"
         refit_srt(srt_out, refit_srt_out)
 
-        print("[STEP] Converting Hindi subtitles to Hinglish...")
-        hinglish_srt = self.artifacts_dir / "hinglish_subtitles.srt"
-        convert_srt_to_hinglish(refit_srt_out, hinglish_srt)
+        subtitle_srt = refit_srt_out
+        script_stats = get_srt_script_stats(refit_srt_out)
+        if srt_contains_devanagari(refit_srt_out):
+            print("[STEP] Devanagari detected; using Hindi-to-Hinglish transliteration fallback...")
+            from backend.audio.hindi_to_hinglish import convert_srt_to_hinglish
+
+            hinglish_srt = self.project_temp_dir / f"{subtitle_base}_hinglish.srt"
+            convert_srt_to_hinglish(refit_srt_out, hinglish_srt)
+            subtitle_srt = hinglish_srt
+        elif is_srt_mostly_roman(refit_srt_out):
+            print(
+                "[OK] Subtitle text is already mostly Roman Hinglish "
+                f"(roman_ratio={script_stats.roman_ratio:.2f}); skipping transliteration."
+            )
+        else:
+            print(
+                "[WARN] Subtitle script is not mostly Roman, but no Devanagari was detected; "
+                "using refitted SRT as-is."
+            )
 
         print("[STEP] Converting SRT to styled ASS...")
-        convert_srt_to_styled_ass(hinglish_srt, ass_out)
+        convert_srt_to_styled_ass(subtitle_srt, ass_out)
 
         print("[STEP] Burning subtitles...")
-        burn_subtitles_into_video(self.ffmpeg_manager, final_clip, ass_out, subbed_out)
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(self.project_temp_dir)
+            burn_subtitles_into_video(
+                self.ffmpeg_manager,
+                final_clip.resolve(),
+                ass_out.resolve(),
+                subbed_out.resolve(),
+            )
+        finally:
+            os.chdir(original_cwd)
         print(f"\n Done. Output: {subbed_out}")
         return subbed_out

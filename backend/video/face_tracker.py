@@ -6,7 +6,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 
-OUT_W, OUT_H = 1080, 1920
+OUT_W, OUT_H = 720, 1280
 SMOOTH = 0.98
 JITTER_THRESHOLD = 1.6  # jitter threshold in pixels
 
@@ -55,7 +55,7 @@ def create_face_tracked_vertical_video(
         "-preset",
         "slow",
         "-crf",
-        "16",
+        "14",
         "-pix_fmt",
         "yuv420p",
         "-c:a",
